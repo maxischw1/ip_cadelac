@@ -1,0 +1,34 @@
+name: ros_env
+channels:
+- conda-forge
+- pytorch
+- nvidia
+- robostack-staging
+- robostack-jazzy
+- defaults
+dependencies:
+- python=3.11
+- pip
+- casadi==3.6.5
+- pinocchio==3.1.0
+- gcc_linux-64=12 
+- gxx_linux-64=12
+- ros-noetic-ros-base
+- ros-noetic-controller-interface
+- ros-noetic-combined-robot-hw
+- ros-noetic-joint-limits-interface
+- ros-noetic-control-msgs
+- ros-noetic-controller-manager
+- ros-noetic-realtime-tools
+- ros-noetic-tf
+- ros-noetic-tf-conversions
+- ros-noetic-eigen-conversions
+- pip:
+  - dm_control
+  - matplotlib
+  - mujoco
+  - spatial_casadi
+  - setuptools>=68.1
+  - scikit-build>=0.17
+  - cmake>=3.27
+  - ninja>=1.11

@@ -1,0 +1,25 @@
+name: cadelac
+channels:
+- conda-forge
+- pytorch
+- nvidia
+- defaults
+dependencies:
+- python=3.11
+- pip
+- casadi==3.6.5
+- pinocchio==3.1.0
+- pytorch
+- torchvision
+- torchaudio
+- pytorch-cuda=12.1
+- pip:
+  - mujoco==3.2.4
+  - dm_control==1.0.24
+  - matplotlib
+  - spatial_casadi
+  - setuptools>=68.1
+  - scikit-build>=0.17
+  - cmake==3.27
+  - ninja>=1.11
+  - dill
