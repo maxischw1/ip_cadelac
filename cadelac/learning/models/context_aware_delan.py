@@ -10,8 +10,8 @@ class ComponentNN(nn.Module):
         super(ComponentNN, self).__init__()
 
         # Read optional arguments:
-        self.n_width = kwargs.get("n_width", 32)
-        self.n_depth = kwargs.get("n_depth", 2)
+        # self.n_width = kwargs.get("n_width", 32)
+        # self.n_depth = kwargs.get("n_depth", 2)
         self.net_arch = kwargs.get("net_arch", None)
         self.n_dof = kwargs.get("n_dof", 2)
         self.n_enc_input = kwargs.get("n_enc_input", 1)
@@ -37,27 +37,13 @@ class ComponentNN(nn.Module):
         if self.n_enc_input > 1:
             input_layer_size += self.n_enc_input
 
-        if self.net_arch is None:
-
-            self.layers.append(torch.nn.Linear(input_layer_size, self.n_width))
-            self.layers.append(self.act)
-
-            # Create Hidden Layer:
-            for _ in range(1, self.n_depth):
-                self.layers.append(torch.nn.Linear(self.n_width, self.n_width))
-                self.layers.append(self.act)
-
-            # Create Output Layer
-            self.layers.append(torch.nn.Linear(self.n_width, self.n_output))
-
-        else:
-            prev_size = input_layer_size
-            for hidden_size in self.net_arch:
-                self.layers.append(torch.nn.Linear(prev_size, hidden_size))  # Linear layer
-                self.layers.append(self.act)  # Activation function
-                prev_size = hidden_size  # Update previous layer size
-            # Create Output Layer
-            self.layers.append(torch.nn.Linear(prev_size, self.n_output))
+        prev_size = input_layer_size
+        for hidden_size in self.net_arch:
+            self.layers.append(torch.nn.Linear(prev_size, hidden_size))  # Linear layer
+            self.layers.append(self.act)  # Activation function
+            prev_size = hidden_size  # Update previous layer size
+        # Create Output Layer
+        self.layers.append(torch.nn.Linear(prev_size, self.n_output))
         
         self.net = nn.Sequential(*self.layers)
         self.net.apply(self.init_weights)
@@ -118,17 +104,17 @@ class ContextAwareDeLaN(nn.Module):
         self.act_ld_name = kwargs.get("act_ld", 'Softplus')
 
         # Use general values if not defined
-        self.n_width_inertia = kwargs.get("n_width_inertia", self.n_width)
-        self.n_depth_inertia = kwargs.get("n_depth_inertia", self.n_depth)
+        # self.n_width_inertia = kwargs.get("n_width_inertia", self.n_width)
+        # self.n_depth_inertia = kwargs.get("n_depth_inertia", self.n_depth)
         kwargs_inertia = copy.deepcopy(kwargs)
-        kwargs_inertia["n_width"] = self.n_width_inertia
-        kwargs_inertia["n_depth"] = self.n_depth_inertia
+        # kwargs_inertia["n_width"] = self.n_width_inertia
+        # kwargs_inertia["n_depth"] = self.n_depth_inertia
 
-        self.n_width_pot = kwargs.get("n_width_pot", self.n_width)
-        self.n_depth_pot = kwargs.get("n_depth_pot", self.n_depth)
+        # self.n_width_pot = kwargs.get("n_width_pot", self.n_width)
+        # self.n_depth_pot = kwargs.get("n_depth_pot", self.n_depth)
         kwargs_pot = copy.deepcopy(kwargs)
-        kwargs_pot["n_width"] = self.n_width_pot
-        kwargs_pot["n_depth"] = self.n_depth_pot
+        # kwargs_pot["n_width"] = self.n_width_pot
+        # kwargs_pot["n_depth"] = self.n_depth_pot
 
         self.net_arch_inertia = None
         self.net_arch_inertia = kwargs.get("net_arch_inertia", self.net_arch_inertia)
@@ -145,10 +131,6 @@ class ContextAwareDeLaN(nn.Module):
 
         self.inertia_net = ComponentNN(self.n_dof, self.l_output_size, **kwargs_inertia)
         self.potential_net = ComponentNN(self.n_dof, 1, **kwargs_pot)
-        # print('Inertia NN:')
-        # print(self.inertia_net)
-        # print('Pot NN:')
-        # print(self.potential_net)
         self.lstm = LSTMModel(self.n_lstm_input, self.n_lstm_hidden, self.n_enc_input, self.n_lstm_depth)
 
         # Calculate the indices of the diagonal elements of L:
@@ -173,11 +155,7 @@ class ContextAwareDeLaN(nn.Module):
         elif self.act_ld_name == 'ReLu':
             self.act_ld = torch.nn.ReLU()
 
-        use_hessian_dyn_model = True
-        if use_hessian_dyn_model:
-            self.dyn_model = self.dyn_model_hessian
-        else:
-            self.dyn_model = self.dyn_model_analytic
+        self.dyn_model = self.dyn_model_hessian
     
         # Define vmap methods
         if self.n_enc_input == 1:
@@ -203,16 +181,10 @@ class ContextAwareDeLaN(nn.Module):
             self.vmap_hessian_lagrangian_full = torch.func.vmap(torch.func.hessian(self.lagrangian_fn, argnums=(0,1)))
 
             self.vmap_jacfwd_lagrangian_q = torch.func.vmap(torch.func.jacfwd(self.lagrangian_fn, argnums=0))
-            # self.vmap_hessian_lagrangian_q_qd = torch.func.vmap(torch.func.hessian(self.lagrangian_fn, argnums=(0, 1)))
-            # self.vmap_hessian_lagrangian_qd_qd = torch.func.vmap(torch.func.jacfwd(self.lagrangian_fn, argnums=1))
 
             self.vmap_hessian_lagrangian_q_qd = torch.func.vmap(torch.func.jacfwd(torch.func.jacrev(self.lagrangian_fn, argnums=0), argnums=1))
             self.vmap_hessian_lagrangian_qd_qd = torch.func.vmap(torch.func.jacfwd(torch.func.jacrev(self.lagrangian_fn, argnums=1), argnums=1))
-            # self.vmap_hessian_lagrangian_q_qd = torch.func.vmap(torch.func.hessian(self.lagrangian_fn, argnums=(0, 1)))
-            # self.vmap_hessian_lagrangian_qd_qd = torch.func.vmap(torch.func.hessian(self.lagrangian_fn, argnums=1))
             self.vmap_hessian_lagrangian_qd = torch.func.vmap(torch.func.jacrev(torch.func.jacfwd(self.lagrangian_fn, argnums=1), argnums=(0,1)))
-
-
 
     def mass_matrix_fn(self, q, enc_input):
         output = self.inertia_net(q, enc_input)
@@ -249,7 +221,6 @@ class ContextAwareDeLaN(nn.Module):
         # Returning twice to use as aux varible over the jacobian
         return l, l
 
-
     def kinetic_energy(self, q, qd, enc_input):
         mass_mat = self.mass_matrix_fn(q, enc_input)
         return 1. / 2. * torch.matmul(qd.view(1, self.n_dof),  torch.matmul(mass_mat, qd.view(self.n_dof, 1)))
@@ -267,54 +238,6 @@ class ContextAwareDeLaN(nn.Module):
         e_pot, _ = self.potential_energy(q, enc_input)
         return e_kin - e_pot
 
-    def dyn_model_analytic(self, q, qd, qdd, enc_input = None):
-        # l: lower triangular inertia mat
-        # L: lagrangian
-        qd_3d = qd.view(-1, self.n_dof, 1)
-        qd_4d = qd.view(-1, 1, self.n_dof, 1)
-
-        (dldq, l) = self.vmap_jacfwd_lower_tri_inertia(q, enc_input)
-        (dVdq, V) = self.vmap_jacfwd_potential_energy(q, enc_input)
-        (lnn_dq, lnn) = self.vmap_jacfwd_inertia_out(q, enc_input)
-
-        tau_g = dVdq.view((-1, self.n_dof))
-
-        # Compute H:
-        lT = torch.permute(l, (0, 2, 1))
-        H = torch.matmul(l, lT)
-
-        # Compute dH/dt
-        dldt = torch.matmul(dldq, qd_4d).view((-1, self.n_dof, self.n_dof))
-        dHdt = torch.matmul(l, torch.permute(dldt, (0, 2, 1))) + torch.matmul(dldt, lT)
-
-        dldq_reshaped = torch.permute(dldq, (0,3,1,2))
-
-        # Compute Coriolis
-        dHdq = torch.matmul(dldq_reshaped, lT.view(-1, 1, self.n_dof, self.n_dof)) + torch.matmul(l.view(-1, 1, self.n_dof, self.n_dof), torch.permute(dldq_reshaped, (0, 1, 3, 2)))
-        quad_dq = torch.matmul(torch.permute(qd_4d, (0, 1, 3, 2)), torch.matmul(dHdq, qd_4d)).view((-1, self.n_dof))
-
-        dHdt_qd = torch.matmul(dHdt, qd_3d).view((-1, self.n_dof))
-
-        tau_c = dHdt_qd - 1. / 2. * quad_dq
-
-        # Compute the Torque using the inverse model:
-        H_qdd = torch.matmul(H, qdd.view(-1, self.n_dof, 1)).view((-1, self.n_dof))
-        tau_pred = H_qdd + tau_c + tau_g
-
-        # Compute kinetic energy T
-        H_qd = torch.matmul(H, qd_3d).view(-1, self.n_dof)
-        T = 1. / 2. * torch.matmul(qd_4d.transpose(dim0=2, dim1=3), H_qd.view(-1, 1, self.n_dof, 1)).view(-1)
-
-        # Compute dT/dt:
-        qd_H_qdd = torch.matmul(qd_4d.transpose(dim0=2, dim1=3), H_qdd.view(-1, 1, self.n_dof, 1)).view(-1)
-        qd_Hdt_qd = torch.matmul(qd_4d.transpose(dim0=2, dim1=3), dHdt_qd.view(-1, 1, self.n_dof, 1)).view(-1)
-        dTdt = qd_H_qdd + 0.5 * qd_Hdt_qd
-
-        # Compute dV/dt
-        dVdt = torch.matmul(qd_4d.transpose(dim0=2, dim1=3), tau_g.view(-1, 1, self.n_dof, 1)).view(-1)
-
-        return tau_pred, H, tau_c, tau_g, T, V, dTdt, dVdt
-    
     def dyn_model_hessian(self, q, qd, qdd, enc_input = None):
         ####
         dLdq = self.vmap_jacfwd_lagrangian_q(q, qd, enc_input)

@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import time
 import os
+import importlib.resources as pkg_resources
 
 import matplotlib as mp
 
@@ -22,8 +23,8 @@ from cadelac.learning.models.DeLaN_model import DeepLagrangianNetwork
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
 
 from cadelac.learning.data_scripts.replay_memory import PyTorchReplayMemory
-from cadelac.learning.data_scripts.utils import init_env
-from cadelac.learning.data_scripts.utils_panda import load_dataset_panda_mpc
+from cadelac.learning.data_scripts.utils import init_env, load_dataset
+from pathlib import Path
 
 
 if __name__ == "__main__":
@@ -70,6 +71,9 @@ if __name__ == "__main__":
     add_noise = False # old flag
     add_noise_to_load_data = False
 
+    LEARNING_DIR = Path(__file__).resolve().parents[0]
+    DATA_DIR = LEARNING_DIR / "data"
+    DATA_DIR = str(DATA_DIR)
 
     ## LSTM parameters
     hist_length = 15 if (nn_id == "ContextAware" and not full_model) else 0
@@ -99,19 +103,19 @@ if __name__ == "__main__":
         else:
             test_label = ['env_0_run_1','env_0_run_2']
         model_type_folder = 'res_model/panda/' + nn_id
-    filename_full = 'learning/data/panda/' + filename + '.pkl'
+    filename_full = DATA_DIR + '/datasets/panda/' + filename + '.pkl'
 
     if hist_length > 0:
         filename_full = filename_full
     else:
         embedding_dim = 0
 
-    train_data, test_data, divider, dt_mean = load_dataset_panda_mpc(filename=filename_full, test_label=test_label,
-                                                                    full_model=full_model, sample_offset=sample_offset,
-                                                                    dataset_use=dataset_use, 
-                                                                    n_dof=n_dof, hist_length=hist_length, 
-                                                                    hist_labels=hist_labels,
-                                                                    add_noise=add_noise_to_load_data)
+    train_data, test_data, divider, dt_mean = load_dataset(filename=filename_full, test_label=test_label,
+                                                        full_model=full_model, sample_offset=sample_offset,
+                                                        dataset_use=dataset_use, 
+                                                        n_dof=n_dof, hist_length=hist_length, 
+                                                        hist_labels=hist_labels,
+                                                        add_noise=add_noise_to_load_data)
 
     if hist_length == 0:
         train_labels, train_qp, train_qv, train_qa, train_p, train_pd, train_tau, train_one_hot = train_data
@@ -157,10 +161,10 @@ if __name__ == "__main__":
 
     # Construct Hyperparameters:
     hyper = {
-             'n_width_inertia': 32,
-             'n_depth_inertia': 2,
-             'n_width_pot': 32,
-             'n_depth_pot': 2,
+            #  'n_width_inertia': 32,
+            #  'n_depth_inertia': 2,
+            #  'n_width_pot': 32,
+            #  'n_depth_pot': 2,
              'diagonal_epsilon': 0.1,
              'activation': 'Tanh',
              'net_arch_inertia': [30, 20],
@@ -188,16 +192,8 @@ if __name__ == "__main__":
             }
 
     model_name = 'epochs_' + str(hyper['max_epoch'])
-    
-    if hyper['net_arch_inertia'] is None:
-        model_name += '_nw_inertia_' + str(hyper['n_width_inertia']) + '_nd_inertia_' + str(hyper['n_depth_inertia'])
-    else:
-        model_name += '_nw_inertia_' + '_'.join(str(x) for x in hyper['net_arch_inertia'])
-
-    if hyper['net_arch_pot'] is None:
-        model_name += '_nw_pot_' + str(hyper['n_width_pot']) + '_nd_pot_' + str(hyper['n_depth_pot'])
-    else:
-        model_name += '_nw_pot_' + '_'.join(str(x) for x in hyper['net_arch_pot'])
+    model_name += '_nw_inertia_' + '_'.join(str(x) for x in hyper['net_arch_inertia'])
+    model_name += '_nw_pot_' + '_'.join(str(x) for x in hyper['net_arch_pot'])
 
     model_name += '_pin'
     if add_noise_to_load_data:
@@ -220,9 +216,7 @@ if __name__ == "__main__":
 
     # Load existing model parameters:
     if load_model:
-        # model_name = 'hist_10_input_21_hidden_10_output_10_depth_5_epochs_2000_n_width_32_n_depth_2_sample_off_0_minibatch_512_loss_pwr_0_dataset_use_1.0_norm_tau_1_panda_box_mass_disc_rand_envs_5_box_pos_rand_0_box_mass_rand_0_samples_200000_sim_time_20_dataset_lqr.torch'
-        # model_name = 'hist_4_input_21_hidden_5_output_5_depth_5_epochs_100_n_width_32_n_depth_2_sample_off_0_minibatch_1024_loss_pwr_0_dataset_use_1.0_norm_tau_1_panda_box_mass_disc_rand_envs_5_box_pos_rand_0_box_mass_rand_0_samples_200000_sim_time_20_dataset_lqr.torch'
-        load_file = f"data/trained_models/{model_type_folder}/{model_name}"
+        load_file = DATA_DIR + f"/trained_models/{model_type_folder}/{model_name}"
         state = torch.load(load_file)
 
         delan_model = nn_type(n_dof, **state['hyper'])
@@ -300,7 +294,7 @@ if __name__ == "__main__":
                 torch.save({"epoch": epoch_i,
                             "hyper": hyper,
                             "state_dict": delan_model.state_dict()},
-                            f"data/trained_models/{model_type_folder}/checkpoint/{model_name}_{epoch_i}") 
+                            DATA_DIR + f"/trained_models/{model_type_folder}/checkpoint/{model_name}_{epoch_i}") 
 
         for q, qd, qdd, tau, enc_input, lstm_input in mem:
             t0_batch = time.perf_counter()
@@ -377,55 +371,20 @@ if __name__ == "__main__":
 
     # Save the Model:
     if save_model and not load_model:
+        folder_model = DATA_DIR + f"/trained_models/{model_type_folder}"
+        if not os.path.isdir(folder_model):
+            os.makedirs(folder_model)
         print(f'Saving model: {model_name}')
         torch.save({"epoch": epoch_i,
                     "hyper": hyper,
                     "state_dict": delan_model.state_dict()},
-                    f"data/trained_models/{model_type_folder}/{model_name}")
+                    folder_model + f"/{model_name}")
 
     print("\n################################################")
     print("Evaluating DeLaN:")
 
     # Compute the inertial, centrifugal & gravitational torque using batched samples
     t0_batch = time.perf_counter()
-
-    debug_test = False
-    if debug_test:
-        zeros_np = np.zeros((7,1))
-        ones_np = np.ones((7,1))
-        # q_test = ones_np
-        # qd_test = ones_np
-        # qdd_test = zeros_np
-
-        q_test = np.array([[1.5], [-0.2], [-0.5], [1.8], [2.0], [0.4], [1.0]])
-        qd_test = np.array([[0.3], [0.4], [-0.35], [2.8], [0.5], [-1.4], [1.2]])
-        qdd_test = np.array([[-0.2], [1.2], [1.5], [-1.2], [0.0], [-0.2], [-0.2]])
-
-        # q_test = np.array([[0.1], [0.2], [0.3], [0.4], [-0.7], [0.1], [-2.5]])
-        # q = np.array([[0.1, 0.2, 0.3, 0.4, -0.7, 0.1, -2.5]])
-
-        # q_test = np.array([[2.2], [1.45]])
-        # qd_test = np.array([[-0.7], [0.1]])
-        # qdd_test = np.array([[0.5], [-0.25]])
-        # q_test = np.array([[0.4], [-0.87]])
-        # qd_test = np.array([[1.2], [-0.7]])
-        # qdd_test = np.array([[5], [-7]])
-        q_test = torch.from_numpy(q_test.T).float().to(delan_model.device)
-        qd_test = torch.from_numpy(qd_test.T).float().to(delan_model.device)
-        qdd_test = torch.from_numpy(qdd_test.T).float().to(delan_model.device)
-        enc_test =  torch.from_numpy(np.array([0,1,0]).reshape((1,3))).float().to(delan_model.device)
-
-        if hist_length == 0:
-            if n_enc_input == 1:
-                tau_test = delan_model.inv_dyn(q_test, qd_test, qdd_test).detach().cpu().numpy().squeeze()
-            else:
-                tau_test = delan_model.inv_dyn(q_test, qd_test, qdd_test, enc_test).detach().cpu().numpy().squeeze()
-        else:
-            lstm_test = np.ones((hist_length, n_lstm_input))
-            lstm_test = torch.from_numpy(lstm_test).float().to(delan_model.device).view(1, hist_length, -1)
-            tau_test = delan_model.inv_dyn(q_test, qd_test, qdd_test, lstm_test).detach().cpu().numpy().squeeze()
-
-        print(f'debug tau {tau_test}')
 
     # Convert NumPy samples to torch:
     q = torch.from_numpy(test_qp).float().to(delan_model.device)
@@ -455,39 +414,6 @@ if __name__ == "__main__":
         delan_tau = delan_output[0].cpu().numpy()
         delan_dEdt = delan_output[1].cpu().numpy()
     t_batch = (time.perf_counter() - t0_batch) / (3. * float(test_qp.shape[0]))
-
-    # Move model to the CPU:
-    delan_model.cpu()
-
-    # Compute the joint torque using single samples on the CPU. The results is done using only single samples to
-    # imitate the online control-loop. These online computation are performed on the CPU as this is faster for single
-    # samples.
-
-    # delan_tau, delan_dEdt = np.zeros(test_qp.shape), np.zeros((test_qp.shape[0], 1))
-    # t0_evaluation = time.perf_counter()
-    # for i in range(test_qp.shape[0]):
-
-    #     with torch.no_grad():
-
-    #         # Convert NumPy samples to torch:
-    #         q = torch.from_numpy(test_qp[i]).float().view(1, -1)
-    #         qd = torch.from_numpy(test_qv[i]).float().view(1, -1)
-    #         qdd = torch.from_numpy(test_qa[i]).float().view(1, -1)
-    #         enc_input = torch.from_numpy(test_one_hot[i]).float().view(1, -1)
-
-    #         # Compute predicted torque:
-    #         if hist_length == 0:
-    #             if n_enc_input == 1:
-    #                 out = delan_model(q, qd, qdd)
-    #             else:
-    #                 out = delan_model(q, qd, qdd, enc_input)
-    #         else:
-    #             lstm_input = torch.from_numpy(test_lstm_input[i]).float().view(1, hist_length, -1)
-    #             out = delan_model(q, qd, qdd, lstm_input)
-    #         delan_tau[i] = out[0].cpu().numpy().squeeze()
-    #         delan_dEdt[i] = out[1].cpu().numpy()
-
-    # t_eval = (time.perf_counter() - t0_evaluation) / float(test_qp.shape[0])
 
     # Compute Errors:
     test_dEdt = np.sum(test_tau * test_qv, axis=1).reshape((-1, 1))
@@ -541,7 +467,7 @@ if __name__ == "__main__":
     ticks = np.array(divider)
     ticks = (ticks[:-1] + ticks[1:]) / 2
 
-    for i in range(0,n_dof, 2):
+    for i in range(0, n_dof, 2):
 
         fig = plt.figure(figsize=(24.0/1.54, 8.0/1.54), dpi=100)
         fig.subplots_adjust(left=0.08, bottom=0.12, right=0.98, top=0.95, wspace=0.3, hspace=0.2)
@@ -683,7 +609,7 @@ if __name__ == "__main__":
         if i+1 < n_dof:
             ax1.plot(delan_g[:, i+1], color=color_i[0], alpha=plot_alpha)
 
-        fig_dir = f"figures/mpc_DeLaN_Performance/{model_type_folder}/{model_name}"
+        fig_dir = str(LEARNING_DIR) + f"/figures/mpc_DeLaN_Performance/{model_type_folder}/{model_name}"
         if not os.path.isdir(fig_dir):
             os.makedirs(fig_dir)
         fig.savefig(f"{fig_dir}/joints_{i}_{i+1}.pdf", format="pdf")
