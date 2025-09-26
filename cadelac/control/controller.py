@@ -51,7 +51,8 @@ class MPC:
             print(f'Controller found at {compiled_controller}')
         else:
             print('Controller not found. Compiling it.')
-            self.solver = AcadosOcpSolver(self.ocp())
+            build_dir = "acados_build"
+            self.solver = AcadosOcpSolver(self.ocp(), build_dir=build_dir)
     
     def ocp(self):
         # model = self.model

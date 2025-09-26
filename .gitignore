@@ -4,6 +4,8 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
+*.c
+*.o
 *.egg-info/
 .eggs/
 dist/
@@ -12,3 +14,5 @@ build/
 # Cadelac
 datasets/
 trained_models/
+
+c_generated_code/

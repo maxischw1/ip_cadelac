@@ -533,7 +533,7 @@ if __name__ == "__main__":
 
     robot_name = 'panda'
     xml_path = (
-            Path(__file__).resolve().parent.parent.parent
+            Path(__file__).resolve().parent.parent
             / "robots"
             / str(robot_name)
             / "panda.xml"

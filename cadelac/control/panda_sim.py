@@ -730,7 +730,7 @@ def build_models(num_rand_envs, box_pos=None, box_inertia_flag=False, box_mass=1
         xml_name = "scene_no_collision.xml"
 
     xml_path = (
-            Path(__file__).resolve().parent.parent.parent
+            Path(__file__).resolve().parent.parent
             / "robots"
             / str(robot_name)
             / xml_name

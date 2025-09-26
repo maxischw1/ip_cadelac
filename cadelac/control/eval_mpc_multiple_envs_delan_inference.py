@@ -1,14 +1,14 @@
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
 import pickle
 import time
 
 from cadelac.control.panda_sim import build_models
-
 from cadelac.control.learned_dynamics.new_double_DeLaN_model import L4CDoubleDeLaN
 from cadelac.control.main_mpc import PandaMPCSim
 from cadelac.control.robot_model import RealtimeApprox
+
+from pathlib import Path
 
 def compute_rms(error):
     return np.sqrt(np.mean(np.square(error), axis=0))
@@ -50,7 +50,8 @@ if __name__ == "__main__":
                                                 seed=seed)
     
     ## Load Delan
-    model_folder = 'learned_dynamics/models/res_model/panda_good_models/good_models_2025_02_24/'
+    CONTROL_DIR = str(Path(__file__).resolve().parents[0])
+    model_folder = CONTROL_DIR + '/learned_dynamics/models/res_model/'
     filename = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
     inference_suffix = '_delan_v4_envs_101_noise_kf_0_new_QR_repeat'
 
