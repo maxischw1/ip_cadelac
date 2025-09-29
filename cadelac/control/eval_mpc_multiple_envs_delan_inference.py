@@ -4,7 +4,7 @@ import pickle
 import time
 
 from cadelac.control.panda_sim import build_models
-from cadelac.control.learned_dynamics.l4c_context_aware_delan import L4CContextAwareDeLaN
+from cadelac.control.l4c_context_aware_delan import L4CContextAwareDeLaN
 from cadelac.control.main_mpc import PandaMPCSim
 from cadelac.control.casadi_model import RealtimeApprox
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # Model Parameteres
     n_dof = 7
-    use_delan = False
+    use_delan = True
     kf_filter = False
     hist_length = 15
     n_lstm_output = 10
