@@ -17,16 +17,17 @@ If you find this work useful, please consider citing:
 
 # Installation
 
-## Install the package
-`
-pip install -e .
-`
 
 ## Set Up Conda Environment
 Create and activate the conda environment:  
 `
 conda env create -f cadelac_env.yml
 conda activate cadelac
+`
+
+Install CaDeLaC  
+`
+pip install -e .
 `
 
 Install l4casadi  
