@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import time
 import os
-import importlib.resources as pkg_resources
 
 import matplotlib as mp
 
@@ -17,7 +16,6 @@ if os.getenv("DISPLAY"):
         pass
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 from cadelac.learning.models.DeLaN_model import DeepLagrangianNetwork
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
@@ -47,28 +45,17 @@ if __name__ == "__main__":
         nn_type = ContextAwareDeLaN
 
     # Read the dataset:
-    box_mass = 1.0
-    box_pos = np.array([0.1, 0.15])
     dataset_use = 1.0
-    samples = 100000
-    tau_max = 100
-    sim_total_time = 20
-    embedding_dim = 3
-    shared_embedding_layer = 1
     minibatch = 1024
-    # minibatch = 512
     loss_power = False
 
     n_dof = 7
-    one_hot_input = False
     full_model = False
     flag_normalize_tau = True
     sample_offset = 0
     save_checkpoint_model = False
     log_period = 5
 
-    add_tau_noise = False # old flag
-    add_noise = False # old flag
     add_noise_to_load_data = False
 
     LEARNING_DIR = Path(__file__).resolve().parents[0]
@@ -107,8 +94,6 @@ if __name__ == "__main__":
 
     if hist_length > 0:
         filename_full = filename_full
-    else:
-        embedding_dim = 0
 
     train_data, test_data, divider, dt_mean = load_dataset(filename=filename_full, test_label=test_label,
                                                         full_model=full_model, sample_offset=sample_offset,
@@ -134,19 +119,6 @@ if __name__ == "__main__":
         test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_diff_tau_nom), axis=-1)
         n_enc_input = n_lstm_output
 
-    # add_tau_noise = False
-    if add_tau_noise:
-        train_tau = train_tau + np.random.normal(0, 0.5, train_tau.shape)
-
-    if add_noise:
-        # train_qp = train_qp + np.random.normal(0, 0.15, train_qp.shape)
-        # train_qv = train_qv + np.random.normal(0, 0.20, train_qv.shape)
-        # train_qa = train_qa + np.random.normal(0, 4, train_qa.shape)
-        # train_tau = train_tau + np.random.normal(0, 3, train_tau.shape)
-        train_qp = train_qp + np.random.normal(0, 0.1, train_qp.shape)
-        train_qv = train_qv + np.random.normal(0, 0.10, train_qv.shape)
-        train_qa = train_qa + np.random.normal(0, 2, train_qa.shape)
-        train_tau = train_tau + np.random.normal(0, 1, train_tau.shape)
 
     print("\n\n################################################")
     print("Characters:")
@@ -161,10 +133,6 @@ if __name__ == "__main__":
 
     # Construct Hyperparameters:
     hyper = {
-            #  'n_width_inertia': 32,
-            #  'n_depth_inertia': 2,
-            #  'n_width_pot': 32,
-            #  'n_depth_pot': 2,
              'diagonal_epsilon': 0.1,
              'activation': 'Tanh',
              'net_arch_inertia': [30, 20],
@@ -176,13 +144,9 @@ if __name__ == "__main__":
              'gain_output': 0.1,
              'n_minibatch': minibatch,
              'learning_rate': 5.e-04,
-             'lr_scheduler': 'No',
-             'lr_final': 5.e-05,
              'weight_decay': 1.e-4,
              'init_tf': True,
              'n_enc_input': n_enc_input,
-             'embedding_dim': embedding_dim,
-             'shared_embedding_layer_flag': shared_embedding_layer,
              'n_lstm_hidden': n_lstm_hidden,
              'n_lstm_input': n_lstm_input,
              'n_lstm_depth': n_lstm_depth,
@@ -199,19 +163,12 @@ if __name__ == "__main__":
     if add_noise_to_load_data:
         model_name += '_noise_'
     model_name += '_mb_' + str(minibatch) + '_norm_tau_' + str(int(flag_normalize_tau)) + '_'
-    if add_noise:
-        model_name += '_noise2_'
+
     model_name += filename_short + '.torch'
     if nn_id == "ContextAware":
         model_name = 'hist_' + str(hist_length) + '_lstm_in_' + str(n_lstm_input) + '_h_' + str(n_lstm_hidden) + '_out_' + str(n_lstm_output) + '_d_' + str(n_lstm_depth) + '_act_ld_' + str(hyper['act_ld']) + '_' + model_name
-        
-        if hyper['lr_scheduler'] is not None:
-            model_name = 'lr_sch_' + hyper['lr_scheduler'] + '_' + model_name
     else:
         model_name = nn_id + '_' + model_name
-
-    if n_enc_input > 1 and nn_id != "ContextAware":
-        model_name = str(n_enc_input) + '_envs' + '_embed_' + str(embedding_dim) + '_' + model_name
 
 
     # Load existing model parameters:
@@ -237,16 +194,13 @@ if __name__ == "__main__":
     # Generate Replay Memory:
     if not full_model:
         lstm_input_shape = (hist_length, n_lstm_input, ) if hist_length > 0 else (1, )
-        mem_dim = ((n_dof, ), (n_dof, ), (n_dof, ), (n_dof, ), (test_one_hot.shape[-1], ), lstm_input_shape)
-        mem = PyTorchReplayMemory(train_qp.shape[0], hyper["n_minibatch"], mem_dim, cuda)
-        mem.add_samples([train_qp, train_qv, train_qa, train_tau, train_one_hot, train_lstm_input])
-
     else:
-        train_one_hot = train_one_hot.reshape(train_qp.shape[0], -1)
         train_lstm_input = train_lstm_input.reshape(train_qp.shape[0], -1)
-        mem_dim = ((n_dof, ), (n_dof, ), (n_dof, ), (n_dof, ), (train_one_hot.shape[-1], ), (train_lstm_input.shape[-1], ))
-        mem = PyTorchReplayMemory(train_qp.shape[0], hyper["n_minibatch"], mem_dim, cuda)
-        mem.add_samples([train_qp, train_qv, train_qa, train_tau, train_one_hot, train_lstm_input])
+        lstm_input_shape = (train_lstm_input.shape[-1],)
+
+    mem_dim = ((n_dof, ), (n_dof, ), (n_dof, ), (n_dof, ), lstm_input_shape)
+    mem = PyTorchReplayMemory(train_qp.shape[0], hyper["n_minibatch"], mem_dim, cuda)
+    mem.add_samples([train_qp, train_qv, train_qa, train_tau, train_lstm_input])
 
     # Start Training Loop:
     t0_start = time.perf_counter()
@@ -269,16 +223,7 @@ if __name__ == "__main__":
         sum_param += init_param_dict[key].reshape(-1).shape[0]
         if 'lstm' in key:
             lstm_param += init_param_dict[key].reshape(-1).shape[0]
-    print(f'Number of parameters {sum_param} | LSTM {lstm_param} | MLPs {sum_param - lstm_param}')
-
-
-    if hyper['lr_scheduler'] == 'Exp':
-        lr_final = hyper['lr_final']
-        lr_initial = hyper["learning_rate"]
-        lr_gamma = (lr_final / lr_initial) ** (1 / hyper['max_epoch'])
-        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma)
-    else:
-        lr_scheduler = None
+    print(f'Number of parameters {int(sum_param)} | LSTM {int(lstm_param)} | MLPs {int(sum_param - lstm_param)}')
 
     epoch_i = 0
     t_avg_epoch = 0.0
@@ -296,21 +241,15 @@ if __name__ == "__main__":
                             "state_dict": delan_model.state_dict()},
                             DATA_DIR + f"/trained_models/{model_type_folder}/checkpoint/{model_name}_{epoch_i}") 
 
-        for q, qd, qdd, tau, enc_input, lstm_input in mem:
+        for q, qd, qdd, tau, lstm_input in mem:
             t0_batch = time.perf_counter()
 
             # Reset gradients:
             optimizer.zero_grad()
 
-            if embedding_dim > 1:
-                enc_input = enc_input.long()
-
             # Compute the Rigid Body Dynamics Model:
             if hist_length == 0:
-                if n_enc_input == 1:
-                    tau_hat, dEdt_hat = delan_model(q, qd, qdd)
-                else:
-                    tau_hat, dEdt_hat = delan_model(q, qd, qdd, enc_input)
+                tau_hat, dEdt_hat = delan_model(q, qd, qdd)
             else:
                 tau_hat, dEdt_hat = delan_model(q, qd, qdd, lstm_input)
 
@@ -332,9 +271,6 @@ if __name__ == "__main__":
                 loss = l_mean_inv_dyn
             loss.backward()
             optimizer.step()
-            if hasattr(delan_model, 'shared_embedding_layer'):
-                if delan_model.shared_embedding_layer:
-                    delan_model.shared_embedding_layer.normalize_weights()
 
             # Update internal data:
             n_batches += 1
@@ -353,9 +289,6 @@ if __name__ == "__main__":
         l_mem_var_dEdt /= float(n_batches)
         l_mem /= float(n_batches)
         epoch_i += 1
-
-        if lr_scheduler is not None:
-            lr_scheduler.step()
 
         t_epoch = time.perf_counter() - t0_epoch
         t_avg_epoch = t_avg_epoch + t_epoch
@@ -390,22 +323,16 @@ if __name__ == "__main__":
     q = torch.from_numpy(test_qp).float().to(delan_model.device)
     qd = torch.from_numpy(test_qv).float().to(delan_model.device)
     qdd = torch.from_numpy(test_qa).float().to(delan_model.device)
-    enc_input = torch.from_numpy(test_one_hot).float().to(delan_model.device)
     lstm_input = torch.from_numpy(test_lstm_input).float().to(delan_model.device)
     zeros = torch.zeros_like(q).float().to(delan_model.device)
 
     # Compute the torque decomposition:
     with torch.no_grad():
         if hist_length == 0:
-            if n_enc_input == 1:
-                delan_g = delan_model.inv_dyn(q, zeros, zeros).cpu().numpy().squeeze()
-                delan_c = delan_model.inv_dyn(q, qd, zeros).cpu().numpy().squeeze() - delan_g
-                delan_m = delan_model.inv_dyn(q, zeros, qdd).cpu().numpy().squeeze() - delan_g
-            else:
-                delan_g = delan_model.inv_dyn(q, zeros, zeros, enc_input).cpu().numpy().squeeze()
-                delan_c = delan_model.inv_dyn(q, qd, zeros, enc_input).cpu().numpy().squeeze() - delan_g
-                delan_m = delan_model.inv_dyn(q, zeros, qdd, enc_input).cpu().numpy().squeeze() - delan_g
-            delan_output = delan_model(q, qd, qdd, enc_input)
+            delan_g = delan_model.inv_dyn(q, zeros, zeros).cpu().numpy().squeeze()
+            delan_c = delan_model.inv_dyn(q, qd, zeros).cpu().numpy().squeeze() - delan_g
+            delan_m = delan_model.inv_dyn(q, zeros, qdd).cpu().numpy().squeeze() - delan_g
+            delan_output = delan_model(q, qd, qdd)
         else:
             delan_g = delan_model.inv_dyn(q, zeros, zeros, lstm_input).cpu().numpy().squeeze()
             delan_c = delan_model.inv_dyn(q, qd, zeros, lstm_input).cpu().numpy().squeeze() - delan_g

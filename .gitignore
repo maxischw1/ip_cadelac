@@ -14,5 +14,7 @@ build/
 # Cadelac
 datasets/
 trained_models/
+figures/
 
 c_generated_code/
+acados_ocp.json

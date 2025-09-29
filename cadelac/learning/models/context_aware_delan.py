@@ -10,8 +10,6 @@ class ComponentNN(nn.Module):
         super(ComponentNN, self).__init__()
 
         # Read optional arguments:
-        # self.n_width = kwargs.get("n_width", 32)
-        # self.n_depth = kwargs.get("n_depth", 2)
         self.net_arch = kwargs.get("net_arch", None)
         self.n_dof = kwargs.get("n_dof", 2)
         self.n_enc_input = kwargs.get("n_enc_input", 1)
@@ -89,8 +87,8 @@ class ContextAwareDeLaN(nn.Module):
         super(ContextAwareDeLaN, self).__init__()
 
         self.n_dof = n_dof
-        self.n_width = kwargs.get("n_width", 32)
-        self.n_depth = kwargs.get("n_depth", 2)
+        # self.n_width = kwargs.get("n_width", 32)
+        # self.n_depth = kwargs.get("n_depth", 2)
         self.n_enc_input = kwargs.get("n_enc_input", 1)
         self.n_lstm_hidden = kwargs.get("n_lstm_hidden", 1)
         self.n_lstm_input = kwargs.get("n_lstm_input", 1)
@@ -104,17 +102,8 @@ class ContextAwareDeLaN(nn.Module):
         self.act_ld_name = kwargs.get("act_ld", 'Softplus')
 
         # Use general values if not defined
-        # self.n_width_inertia = kwargs.get("n_width_inertia", self.n_width)
-        # self.n_depth_inertia = kwargs.get("n_depth_inertia", self.n_depth)
         kwargs_inertia = copy.deepcopy(kwargs)
-        # kwargs_inertia["n_width"] = self.n_width_inertia
-        # kwargs_inertia["n_depth"] = self.n_depth_inertia
-
-        # self.n_width_pot = kwargs.get("n_width_pot", self.n_width)
-        # self.n_depth_pot = kwargs.get("n_depth_pot", self.n_depth)
         kwargs_pot = copy.deepcopy(kwargs)
-        # kwargs_pot["n_width"] = self.n_width_pot
-        # kwargs_pot["n_depth"] = self.n_depth_pot
 
         self.net_arch_inertia = None
         self.net_arch_inertia = kwargs.get("net_arch_inertia", self.net_arch_inertia)

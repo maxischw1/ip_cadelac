@@ -66,3 +66,27 @@ acados commit:
 0d03b8570
 
 v0.4.3
+
+# Context-Aware DeLaN
+All scripts related to training the proposed models are located in the `learning` folder.  
+The training pipeline is adapted from [Deep Lagrangian Networks](https://github.com/milutter/deep_lagrangian_networks) and implemented in **PyTorch**.
+
+## Datasets
+The dataset used in this project is hosted on [Hugging Face Datasets](https://huggingface.co/datasets/<your-username>/<dataset-name>).
+
+To download it directly into the repository, run:
+```
+git clone https://huggingface.co/datasets/<your-username>/<dataset-name> learning/data/datasets/panda
+```
+
+This dataset was originally generated with the script `sim/create_dataset.py`.  
+If you prefer to create it yourself, simply run:
+```
+python3 -m cadelac.sim.create_dataset
+```
+
+## Training
+To train the Context-Aware DeLaN on the dataset, run:
+```
+python3 -m cadelac.learning.train_panda
+```
