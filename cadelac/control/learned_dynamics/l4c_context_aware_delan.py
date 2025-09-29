@@ -6,11 +6,8 @@ import numpy as np
 import casadi as cs
 import l4casadi as l4c
 
-
 from l4casadi.naive.nn import activation as activations
 from l4casadi.naive.nn.linear import Linear as l4c_Linear
-
-from typing import Callable
 
 import time
 
@@ -211,39 +208,6 @@ class ComponentNN(nn.Module):
         # Hack to proper compute the jacobians from the aprox solution
         return self.net(input).reshape((1,-1))
 
-    # def forward(self, input_q, input_enc):
-    #     # input = input.flatten()
-    #     # input_q = input[:self.n_input]
-    #     # input_enc = input[self.n_input:]
-
-    #     if self.apply_tf:
-    #         input_q = self.input_tf(input_q)
-    #     # input = input_q
-
-    #     if self.fwd_embedding:
-    #         input = cs.vertcat(input_q, input_enc)
-    #     # If not fwd embedding, use one hot encode or embedding matrix
-    #     else:
-    #         # Apply embedding
-    #         if self.embedding_dim > 1:
-    #             embedding = self.embedding_mat[input_enc]
-    #             input = torch.cat((input_q, embedding), dim=-1)
-
-    #         # Use one hot encode input
-    #         elif self.n_enc_input > 1:
-    #             input = torch.cat((input_q, input_enc), dim=-1)
-
-    #     # Hack to proper compute the jacobians from the aprox solution
-    #     return self.net(input).reshape((1,-1))
-
-    # def forward(self, input_q, input_e):
-    #     input = torch.cat((self.input_tf(input_q), input_e), dim=-1)
-    #     # Hack to proper compute the jacobians from the aprox solution
-    #     return self.net(input).reshape((1,-1))
-    
-    # def forward(self, input_all):
-    #     # Hack to proper compute the jacobians from the aprox solution
-    #     return self.net(input_all.squeeze()).reshape((1,-1))
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers):
@@ -264,7 +228,7 @@ class LSTMModel(nn.Module):
         return out
 
 
-class L4CDoubleDeLaN():
+class L4CContextAwareDeLaN():
     def __init__(self, torch_model, n_dof = 2, n_enc_input = 1,
                  embedding_dim = 1, fwd_embedding = True, device = 'cpu'):
         
