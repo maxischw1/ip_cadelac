@@ -71,14 +71,11 @@ if __name__ == "__main__":
     n_lstm_depth = 5
 
     if hist_length > 0:
-
-        filename = 'env_0_env_10_ref_exc_joint_init3_panda_box_rand_mass_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-        filename_short = '10_envs_ref_exec_init3_rand_envs_nom_101_kf_0_samples_1040300_stime_10'
-
+        filename = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
+        filename_short = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
     else:
-
-        filename = 'env_0_ref_exc_joint_init3_panda_box_rand_mass_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-        filename_short = 'env_0_ref_exec_init3_rand_envs_nom_101_kf_0_samples_1040300_stime_10'
+        filename = 'panda_mj_no_payload_50Hz_lqr_kf'
+        filename_short = 'panda_mj_no_payload_50Hz_lqr_kf'
 
     if full_model:
         test_label = ['env_0_run_1','env_0_run_2']

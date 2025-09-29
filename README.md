@@ -72,11 +72,11 @@ All scripts related to training the proposed models are located in the `learning
 The training pipeline is adapted from [Deep Lagrangian Networks](https://github.com/milutter/deep_lagrangian_networks) and implemented in **PyTorch**.
 
 ## Datasets
-The dataset used in this project is hosted on [Hugging Face Datasets](https://huggingface.co/datasets/<your-username>/<dataset-name>).
+The datasets used in this project is hosted on [Hugging Face Datasets](https://huggingface.co/datasets/schulze18/cadelac).
 
 To download it directly into the repository, run:
 ```
-git clone https://huggingface.co/datasets/<your-username>/<dataset-name> learning/data/datasets/panda
+git clone https://huggingface.co/datasets/schulze18/cadelac learning/data/datasets/panda
 ```
 
 This dataset was originally generated with the script `sim/create_dataset.py`.  
