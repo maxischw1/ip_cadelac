@@ -4,7 +4,7 @@ import pickle
 import time
 
 from cadelac.control.panda_sim import build_models
-from cadelac.control.learned_dynamics.new_double_DeLaN_model import L4CDoubleDeLaN
+from cadelac.control.learned_dynamics.l4c_context_aware_delan import L4CContextAwareDeLaN
 from cadelac.control.main_mpc import PandaMPCSim
 from cadelac.control.casadi_model import RealtimeApprox
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     # Model Parameteres
     n_dof = 7
     use_delan = False
-    kf_filter = True
+    kf_filter = False
     hist_length = 15
     n_lstm_output = 10
     n_enc_input = n_lstm_output
@@ -30,8 +30,8 @@ if __name__ == "__main__":
 
     # Evaluation parameters
     n_train_envs = 100
-    n_eval_envs = 30
-    n_runs = 20
+    n_eval_envs = 5
+    n_runs = 10
     Tsim_run = 10
     # n_runs = 2
 
@@ -53,18 +53,13 @@ if __name__ == "__main__":
     CONTROL_DIR = str(Path(__file__).resolve().parents[0])
     model_folder = CONTROL_DIR + '/learned_dynamics/models/res_model/'
     filename = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
-    inference_suffix = '_delan_v4_envs_101_noise_kf_0_new_QR_repeat'
+    inference_suffix = '_cadelac'
 
     load_file = model_folder + filename
     print(f'Loading file {load_file}')
 
     torch_model = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
-    if 'n_width' not in torch_model['hyper'].keys():
-        torch_model['hyper']['n_width'] = torch_model['hyper']['n_width_inertia']
-        torch_model['hyper']['n_depth'] = torch_model['hyper']['n_depth_inertia']
-    l4c_delan_inference = L4CDoubleDeLaN(torch_model, n_dof=n_dof, n_enc_input=n_enc_input,
-                                fwd_embedding=False, device='cpu')
-
+    l4c_delan_inference = L4CContextAwareDeLaN(torch_model, n_dof=n_dof, n_enc_input=n_enc_input, device='cpu')
 
 
     if use_delan:

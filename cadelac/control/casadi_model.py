@@ -77,8 +77,9 @@ class CasadiModel():
             self.inertia_nn = self.delan_model.inertia_net_naive_comp
             self.potential_nn = self.delan_model.potential_net_naive_comp
 
-        # Default l4c does not work because pinocchio.casadi uses SX, which forces l4_casadi
-        # to be evaluated as SX. However, casadi does not allow to evaluate SX as external library.
+        # Default l4c is incompatible because pinocchio.casadi uses SX,
+        # which forces l4_casadi to be evaluated as SX. However, CasADi does not support evaluating
+        # SX expressions through external libraries.
         elif self.realtime_approx == RealtimeApprox.NO_APPROX_SHARED_LIB:
             q_delan = cs.MX.sym("q_delan_nn", self.nq, 1)
             x_delan = q_delan

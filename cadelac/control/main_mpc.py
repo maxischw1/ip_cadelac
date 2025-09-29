@@ -1,11 +1,3 @@
-import os, sys
-
-parent_dir = os.path.dirname(os.path.realpath(__file__))
-repo_dir = parent_dir.split("/")[:-2]
-repo_dir = "/".join(repo_dir)
-sys.path.append(parent_dir)
-sys.path.append(repo_dir)
-
 import mujoco
 
 from cadelac.control.panda_sim import PandaSim, build_models
@@ -214,8 +206,6 @@ class PandaMPCSim(PandaSim):
         self.tau_old_kf = tau
 
     def init_kf_fee(self, q_init, qd_init, tau_init):
-        x_init = np.concatenate((qd_init, q_init))
-
         self.kf_state_Fee = KFStateFee(self.mpc.robot_model.model_pin,
                                      self.mpc.robot_model.data_pin,
                                      self.joint_ctrl_period,
@@ -224,45 +214,8 @@ class PandaMPCSim(PandaSim):
                                      Fee_init=None,
                                      u_init=tau_init,
                                      )
-
-    def init_kf(self, q, qd, tau):
-        self.A_kf = np.zeros((2*self.nq, 2*self.nq))
-        self.A_kf[self.nq:,:self.nq] = np.eye(self.nq)
-        self.A_kf = np.eye(2*self.nq) + self.joint_ctrl_period * self.A_kf
-
-        self.B_kf = np.zeros((2*self.nq, self.nq))
-        self.B_kf[:self.nq,:] = np.eye(self.nq)
-
-        self.C_kf = np.eye(2*self.nq)
-
-        # Map known disturbance
-        self.E_kf = - self.B_kf
-
-        # Map KF torque
-        self.D_kf = self.B_kf
-
-        self.R_kf = 1e3*np.diag(np.concatenate((1e-5*np.ones(self.nq), 1e-5*np.ones(self.nq))))
-        self.Q_kf = 1e2*np.diag(np.concatenate((1e1*np.ones(self.nq), 1e-2*np.ones(self.nq))))
-        self.P_kf = self.Q_kf
-
-        self.n_kf_est = 3
-        # self.n_kf_est = 1
-        self.fext_est_kf = np.zeros(self.n_kf_est)
-        self.tau_est_kf = np.zeros(self.nq)
-        self.x_est = np.concatenate((np.zeros(self.nq), self.q_init))
-
-        self.fext_est_max = 10*9.81
-
-        self.update_state_kf(q, qd, tau)
-
-        self.log_init_value('fext_kf')
-        self.log_init_value('tau_kf')
-
-        self.log_init_value('fext_kf_v0')
-        self.log_init_value('tau_kf_v0')
-
-        self.log_init_value('fext_kf_state')
-        self.log_init_value('tau_kf_state')
+        
+        self.update_state_kf(np.copy(q_init), np.copy(qd_init), np.copy(tau_init))
 
     def log_kf_state_data(self, fext_kf, tau_kf):
         self.log_new_value('fext_kf_state', np.copy(fext_kf))
@@ -625,9 +578,7 @@ class PandaMPCSim(PandaSim):
         # Init KF
         tf_q_init = np.copy(self.q_init)
         tf_qd_init = np.zeros_like(tf_q_init)
-        # tf_tau_init = np.zeros_like(tf_q_init)
         tf_tau_init = np.array(pin.nonLinearEffects(self.mpc.robot_model.model_pin, self.mpc.robot_model.data_pin, tf_q_init, tf_qd_init))
-        self.init_kf(np.copy(tf_q_init), tf_qd_init, tf_tau_init)
         self.init_kf_fee(np.copy(tf_q_init), tf_qd_init, tf_tau_init)
 
         if self.use_viewer:

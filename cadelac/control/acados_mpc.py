@@ -36,6 +36,9 @@ class AcadosMPC:
         self.ny = self.nx + self.nu
 
         self.lib_dir = None
+        # Not using this option: the default l4c is incompatible because pinocchio.casadi uses SX,
+        # which forces l4_casadi to be evaluated as SX. However, CasADi does not support evaluating
+        # SX expressions through external libraries.
         if delan_model is not None and delan_model != 'KF' and realtime_approx != RealtimeApprox.NO_APPROX:
             self.lib_dir = delan_model.l4c_inertia_net.shared_lib_dir
             self.lib_name = delan_model.l4c_inertia_net.name

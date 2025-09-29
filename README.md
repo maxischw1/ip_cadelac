@@ -1,4 +1,19 @@
-# cadelac
+# CaDeLaC
+
+Source code for **Context-Aware Deep Lagrangian Networks for Model Predictive Control (CaDeLaC)**.
+
+If you find this work useful, please consider citing:
+```
+@misc{schulze2025_cadelac,
+      title={Context-Aware Deep Lagrangian Networks for Model Predictive Control}, 
+      author={Lucas Schulze and Jan Peters and Oleg Arenz},
+      year={2025},
+      eprint={2506.15249},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2506.15249}, 
+}
+```
 
 # Installation
 
