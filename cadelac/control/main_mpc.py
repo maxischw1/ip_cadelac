@@ -9,8 +9,8 @@ sys.path.append(repo_dir)
 import mujoco
 
 from cadelac.control.panda_sim import PandaSim, build_models
-from cadelac.control.controller import MPC
-from cadelac.control.robot_model import RealtimeApprox
+from cadelac.control.acados_mpc import AcadosMPC
+from cadelac.control.casadi_model import RealtimeApprox
 from cadelac.control.kf_state_force import KFStateFee
 from cadelac.control.logger import Logger
 from cadelac.control.pin_utils import *
@@ -51,54 +51,24 @@ class PandaMPCSim(PandaSim):
 
         self.logger = Logger()
 
-        # box_inertia_flag = None
-        # box_pos = None
-        # box_mass = None
-
-        box_inertia_flag = True
-        box_pos = 0*np.array([[0.3, 0.0, 0.3]])
-        # box_mass = np.array([4])
-        # box_pos = np.array([
-        #                 [0.3, 0.0, 0.3],
-        #                 [0.2, 0.15, -0.2],
-        #                 [-0.3, -0.1, -0.2],
-        #                 [0.3, -0.1, -0.1],
-        #                 [-0.1, 0.1, 0.15],
-        #                 [-0.15, 0.15, 0.1],
-        #                 [-0.1, 0.1, -0.15],
-        #                 [-0.2, 0.2, 0.4],
-        #                ])
-        box_pos = np.array([
-                        [0.15, 0.0, 0.2],
-                        [0.2, 0.15, -0.2],
-                        [-0.3, -0.1, -0.2],
-                        [0.25, -0.1, -0.1],
-                        [-0.1, 0.1, 0.15],
-                        [-0.15, 0.15, 0.1],
-                        [-0.1, 0.1, -0.15],
-                        [-0.2, 0.2, 0.1],
-                       ])
-        # box_mass = 0*np.array([4,])
-        # box_mass = np.array([4, 3, 5, 4, 2]) # Used for training
-        # box_mass = np.array([4, 3, 5, 4, 2, 2.5])
-        # box_mass = np.array([4, 3, 5, 4, 2, 2.5, 3, 4])
-        box_mass = np.array([1.5, 3, 0.5, 1, 2, 2.5, 3, 4])
-
-        self.rand_env = box_mass.shape[0]
+        self.rand_env = len(sim_xml_handles)
         # Get XML
         if (sim_xml_handles is None) or (xml_handles is None):
+            self.rand_env = 100
             self.sim_xml_handles, self.xml_handles, self.original_xml = build_models(num_rand_envs=self.rand_env,
-                                                                                    box_pos=box_pos,
-                                                                                    box_inertia_flag=box_inertia_flag,
-                                                                                    box_mass=box_mass,
+                                                                                    box_pos=None,
+                                                                                    box_inertia_flag=True,
+                                                                                    box_mass=None,
                                                                                     collision=False,
                                                                                     )
         else:
+            self.rand_env = len(sim_xml_handles)
             self.sim_xml_handles = sim_xml_handles
             self.xml_handles = xml_handles
-        # if self.rand_env == 1:
-        #     self.sim_xml_handles = [copy.copy(self.original_xml)]
-        #     self.xml_handles = [copy.copy(self.original_xml)]
+
+        if self.rand_env == 1:
+            self.sim_xml_handles = [copy.copy(self.original_xml)]
+            self.xml_handles = [copy.copy(self.original_xml)]
 
         self.env_id = 0
         # Setup Mujoco
@@ -128,8 +98,6 @@ class PandaMPCSim(PandaSim):
 
         # MPC Parameters
         self.mpc_period = 0.02
-        # self.mpc_period = 0.01
-        # self.mpc_period = self.joint_ctrl_period
         self.mpc_freq = 1.0 / self.mpc_period
         self.N_horizon = 12
         self.T_horizon = self.N_horizon * self.mpc_period
@@ -137,7 +105,7 @@ class PandaMPCSim(PandaSim):
         self.sim_total_time = float(sim_total_time)
 
         # Setup MPC
-        self.mpc = MPC(N_horizon = self.N_horizon,
+        self.mpc = AcadosMPC(N_horizon = self.N_horizon,
                        T_horizon = self.T_horizon,
                        expl_dyn = self.expl_dyn,
                        delan_model = self.delan_model,
@@ -157,7 +125,7 @@ class PandaMPCSim(PandaSim):
         self.delan_model_inference = delan_model_inference
         if self.delan_model_inference is not None:
             self.inferece_delan = True
-            self.inference_mpc = MPC(N_horizon = self.N_horizon,
+            self.inference_mpc = AcadosMPC(N_horizon = self.N_horizon,
                        T_horizon = self.T_horizon,
                        expl_dyn = self.expl_dyn,
                        delan_model = self.delan_model_inference,
@@ -245,61 +213,6 @@ class PandaMPCSim(PandaSim):
         self.qd_old_kf = qd
         self.tau_old_kf = tau
 
-    def update_kf(self, x_new):
-
-        # q_old = self.q_old_kf
-        # qd_old = self.qd_old_kf
-        tau_old = self.tau_old_kf
-
-        q_old = self.x_est[self.nq:]
-        qd_old = self.x_est[:self.nq]
-
-        # Update Prediction
-        self.update_kf_model(q_old, qd_old)
-        x_kf_pred = self.get_kf_predition(q_old, qd_old, tau_old, self.tau_known_kf, self.fext_est_kf)
-        self.P_kf = self.A_kf @ self.P_kf @ self.A_kf.T + self.Q_kf
-        x_pred_error = x_new - x_kf_pred
-        self.x_kf_pred_error = self.C_kf @ x_pred_error
-
-        # Update
-        self.K_kf = self.P_kf @ self.C_kf.T @ np.linalg.inv(self.C_kf @ self.P_kf @ self.C_kf.T + self.R_kf)
-
-        self.x_est = x_kf_pred + self.K_kf @ x_pred_error
-        self.P_kf = (np.eye(2*self.nq) - self.K_kf @ self.C_kf.T) @ self.P_kf
-
-        self.x_kf_est_error = x_new - self.x_est
-        # self.fext_est_kf += self.D_kf_inv @ self.K_kf @ self.x_kf_pred_error
-        self.fext_est_kf = self.D_kf_inv @ self.K_kf @ self.x_kf_pred_error
-
-        self.fext_est_kf = np.clip(self.fext_est_kf, -self.fext_est_max, self.fext_est_max)
-
-        return self.Jee_T @ self.fext_est_kf
-
-
-    def get_kf_predition(self, q, qd, tau, tau_known, fext_kf):
-        x_old = np.concatenate((qd, q))
-        x_pred = self.A_kf @ x_old + self.B_kf @ tau + self.E_kf @ tau_known# + self.D_kf @ fext_kf
-        return x_pred
-
-
-    def update_kf_model(self, q, qd):
-        Minertia = np.array(self.cs_robot_model.cpin_H_fn(q))
-        self.tau_known_kf = np.array(self.cs_robot_model.cpin_tau_cg_fn(q, qd)).reshape(-1)
-
-        self.B_kf = np.zeros((2*self.nq, self.nq))
-        self.B_kf[:self.nq,:] = self.joint_ctrl_period * np.linalg.inv(Minertia)
-
-        self.E_kf = - self.B_kf
-
-        self.Jee_T = np.array(self.cs_robot_model.cpin_Jee_fn(q).T)
-        # self.Jee_T = np.array(self.cs_robot_model.cpin_Jee_fn(q).T)[:,2].reshape((-1,1))
-        self.D_kf = np.zeros((2*self.nq, self.n_kf_est))
-        self.D_kf[:self.nq,:] = self.joint_ctrl_period * np.linalg.inv(Minertia) @ self.Jee_T
-        self.D_kf_inv = np.linalg.pinv(self.D_kf)
-        # self.D_kf_inv = np.zeros((self.n_kf_est, 2*self.nq))
-        # # self.D_kf_inv[:,:self.nq] = np.linalg.pinv(self.D_kf[:self.nq,:])
-        # self.D_kf_inv[:,:self.nq] = - self.Jee_T.T @ Minertia / self.joint_ctrl_period
-
     def init_kf_fee(self, q_init, qd_init, tau_init):
         x_init = np.concatenate((qd_init, q_init))
 
@@ -328,10 +241,6 @@ class PandaMPCSim(PandaSim):
         # Map KF torque
         self.D_kf = self.B_kf
 
-        # Ok for zero pos offset
-        # self.R_kf = 1e5*np.diag(np.concatenate((1e-5*np.ones(self.nq), 1e-5*np.ones(self.nq))))
-        # self.Q_kf = 1e2*np.diag(np.concatenate((1e1*np.ones(self.nq), 1e-2*np.ones(self.nq))))
-
         self.R_kf = 1e3*np.diag(np.concatenate((1e-5*np.ones(self.nq), 1e-5*np.ones(self.nq))))
         self.Q_kf = 1e2*np.diag(np.concatenate((1e1*np.ones(self.nq), 1e-2*np.ones(self.nq))))
         self.P_kf = self.Q_kf
@@ -355,13 +264,6 @@ class PandaMPCSim(PandaSim):
         self.log_init_value('fext_kf_state')
         self.log_init_value('tau_kf_state')
 
-    def log_kf_data(self, fext_kf, tau_kf):
-        self.log_new_value('fext_kf_v0', np.copy(self.fext_est_kf))
-        self.log_new_value('tau_kf_v0', np.copy(self.Jee_T @ self.fext_est_kf))
-
-        self.log_new_value('fext_kf', np.copy(fext_kf))
-        self.log_new_value('tau_kf', np.copy(tau_kf))
-    
     def log_kf_state_data(self, fext_kf, tau_kf):
         self.log_new_value('fext_kf_state', np.copy(fext_kf))
         self.log_new_value('tau_kf_state', np.copy(tau_kf))
@@ -375,7 +277,6 @@ class PandaMPCSim(PandaSim):
 
         # Generate Reference
         init_ref_time = time.time()
-        # y_ref, self.q_pos_ref_horizon, self.q_vel_ref_horizon = self.generate_mpc_ref(self.sim_steps)
         y_ref, self.q_pos_ref_horizon, self.q_vel_ref_horizon = self.get_mpc_ref(self.sim_steps)
         self.time_ref += time.time() - init_ref_time
 
@@ -391,18 +292,14 @@ class PandaMPCSim(PandaSim):
         init_param_comp = time.time()
 
         ## Update Kalman Filter
-        tau_kf = self.update_kf(x_mpc)
         noise = 0*np.random.normal(0.0, 0.1, (x_mpc[:self.nq,]).shape)
-
         fee_est_state, tau_kf_state = self.kf_state_Fee.update(x_mpc[self.nq:,], x_mpc[:self.nq,]+noise, self.tau_old_kf)
         self.log_kf_state_data(fee_est_state, tau_kf_state)
 
         if self.delan_model == 'KF':
-            # param = tau_kf_new.reshape((-1,1))
             param = tau_kf_state.reshape((-1,1))
         elif self.delan_model is not None:
             param = self.compute_delan_param(y_ref, self.sim_steps, self.solver_status, enc_input)
-            # print('delan_mpc param')
         self.time_param += time.time() - init_param_comp
 
         # # Update MPC Parameters
@@ -416,9 +313,6 @@ class PandaMPCSim(PandaSim):
         solver_total_time = time.time() - start_solver_time
         self.time_solver += solver_total_time
         self.solver_status = self.mpc.solver.get_status()
-        # if self.solver_status == 2:
-        #     print(f'time {self.sim_steps * self.joint_ctrl_period}')
-            # print(f'solver_total_time {solver_total_time}')
 
         ## Update Logger
         qt = self.get_joint_pos(self.sim_mj_data)
@@ -495,9 +389,7 @@ class PandaMPCSim(PandaSim):
             self.update_hist_data(q_old, qd_old, qdd_new, torque)
 
         param_mpc_dyn = param if self.mpc.model.p.shape[0] > 0.0 else None
-        # self.log_torque_mpc_dynamics(q_old, qd_old, qdd_new, torque, param_mpc_dyn)
         self.log_pred_error()
-        # self.log_torque_pin_nom_dynamics(q_old, qd_old, qdd_new, torque)
 
         self.sim_steps += 1
         if self.viewer is not None:
@@ -533,13 +425,9 @@ class PandaMPCSim(PandaSim):
         freq_traj = 0.25
         
         inf_params = {}
-        # inf_params['amp'] = np.array([0, 0.2, 0.2])
-        # inf_params['amp'] = np.array([0, 0.5, 0.25])
-        # inf_params['theta'] = -30/180*np.pi
         inf_params['amp'] = np.array([0, 0.0, 0.1])
         inf_params['theta'] = 0/180*np.pi
         inf_params['freq'] = freq_traj
-        # inf_params['theta'] = -30/180*np.pi
         inf_params['center_pos'] = ee_init
         inf_params['Ts'] = self.mpc_period
 
@@ -644,18 +532,16 @@ class PandaMPCSim(PandaSim):
     def reset(self, run_name = 'run', seed=None, env_id = None):
         if seed is not None:
             np.random.seed(seed)
-
-        # Get a new env if
-        if self.rand_env > 1:
-            self.env_id = np.random.randint(low=0, high=self.rand_env)
-            # self.env_id = 7
+            
+        if env_id is not None:
+            self.env_id = env_id
             self.mj_model = mujoco.MjModel.from_xml_string(self.xml_handles[self.env_id].to_xml_string(), assets=self.xml_handles[self.env_id].get_assets())
             self.mj_data = mujoco.MjData(self.mj_model)
             self.sim_mj_model = mujoco.MjModel.from_xml_string(self.sim_xml_handles[self.env_id].to_xml_string(), assets=self.sim_xml_handles[self.env_id].get_assets())
             self.sim_mj_data = mujoco.MjData(self.sim_mj_model)
-            
-        elif env_id is not None:
-            self.env_id = env_id
+
+        elif self.rand_env > 1:
+            self.env_id = np.random.randint(low=0, high=self.rand_env)
             self.mj_model = mujoco.MjModel.from_xml_string(self.xml_handles[self.env_id].to_xml_string(), assets=self.xml_handles[self.env_id].get_assets())
             self.mj_data = mujoco.MjData(self.mj_model)
             self.sim_mj_model = mujoco.MjModel.from_xml_string(self.sim_xml_handles[self.env_id].to_xml_string(), assets=self.sim_xml_handles[self.env_id].get_assets())
@@ -671,8 +557,6 @@ class PandaMPCSim(PandaSim):
         else:
             self.q_home = np.array([0, -0.4, 0, -2.4, 0, 2.2, -0.7853])
             self.q_init = np.copy(self.q_home)
-            # real_pos_safe_init = np.array([0, -0.4, 0, -2.4, 0, 2.2, -0.7853])
-            # self.q_init = np.copy(real_pos_safe_init)
         self.mj_data.qpos[:] = np.copy(self.q_init)
         self.sim_mj_data.qpos[:] = np.copy(self.q_init)
         mujoco.mj_forward(self.mj_model, self.mj_data)
@@ -686,8 +570,6 @@ class PandaMPCSim(PandaSim):
         self.log_init_value('xpred_error')
         self.log_init_value('xpred_horizon')
         self.log_init_value('u_horizon')
-        # self.log_init_value('tau_nom_pin')
-        # self.log_init_value('diff_tau_nom_pin')
 
         init_xmpc = np.concatenate((np.zeros(self.nq), np.copy(self.q_init)))
         self.logger.reset_logger(run_name, init_xmpc)

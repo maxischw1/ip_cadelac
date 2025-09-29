@@ -6,8 +6,9 @@ import time
 from cadelac.control.panda_sim import build_models
 from cadelac.control.learned_dynamics.new_double_DeLaN_model import L4CDoubleDeLaN
 from cadelac.control.main_mpc import PandaMPCSim
-from cadelac.control.robot_model import RealtimeApprox
+from cadelac.control.casadi_model import RealtimeApprox
 
+import os
 from pathlib import Path
 
 def compute_rms(error):
@@ -17,16 +18,15 @@ if __name__ == "__main__":
 
     # Model Parameteres
     n_dof = 7
-    use_delan = True
-    kf_filter = False
+    use_delan = False
+    kf_filter = True
     hist_length = 15
     n_lstm_output = 10
     n_enc_input = n_lstm_output
     nx = 2 * n_dof
     RTI_mode = True
 
-    # name_suffix = '_kf_v3' if kf_filter else '_nominal_v3'
-    name_suffix = '_kf_QR_v2_repeat' if kf_filter else '_nominal_QR_v2_repeat'
+    name_suffix = '_kf' if kf_filter else '_nominal'
 
     # Evaluation parameters
     n_train_envs = 100
@@ -144,9 +144,7 @@ if __name__ == "__main__":
             # Track error
             rms_q_track_error = np.sqrt(np.mean(np.square(panda_mpc.logger.logged_data['qp_ref']-panda_mpc.logger.logged_data['qp']),axis=0))
             rms_qd_track_error = np.sqrt(np.mean(np.square(panda_mpc.logger.logged_data['qv_ref']-panda_mpc.logger.logged_data['qv']),axis=0))
-            # print(f'rms_q_track_error {rms_q_track_error}')
-            # print(f'rms_qd_track_error {rms_qd_track_error}')
-            # print(f'q_init {panda_mpc.q_init} | q_home {panda_mpc.q_home}')
+
             if panda_mpc.ref_type == 'Default':
                 print(f'q_sin_ref_amp {panda_mpc.q_sin_ref_amp.T} | q_sin_ref_freq {panda_mpc.q_sin_ref_freq.T}')
 
@@ -160,8 +158,6 @@ if __name__ == "__main__":
 
             results['rms_q_pred_error'].append(rms_q_pred_error)
             results['rms_qd_pred_error'].append(rms_qd_pred_error)
-            # print(f'rms_q_pred_error {rms_q_pred_error}')
-            # print(f'rms_qd_pred_error {rms_qd_pred_error}')
 
             # Get prediction error at n horizon
             def get_q_pred_errror_n_horizon(n_horizon):
@@ -214,17 +210,17 @@ if __name__ == "__main__":
             results['avg_acados_time_solution_sens_lin'].append(np.mean(panda_mpc.logger.logged_data['time_solution_sens_lin']))
 
 
-    folder_name = 'runs_eval/exc_reference_2025_03_03/'
+    folder_name = 'cadelac/sim_results/'
     results_dict_name = str(n_runs) + '_runs'
     if use_delan:
-        # results_dict_name += '_delan_hist_' + str(hist_length)
-        # results_dict_name += '_delan_hist_' + str(hist_length) + '_no_approx_'
-        results_dict_name += '_delan_hist_' + str(hist_length) + name_suffix
+        results_dict_name += '_cadelac_' + str(hist_length) + name_suffix
     elif kf_filter:
         results_dict_name += '_kf_mpc' + name_suffix
     else:
         results_dict_name += '_nominal_mpc' + name_suffix
     results_dict_name += '_n_envs_' + str(n_eval_envs) + '_n_runs_' + str(n_runs)
 
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
     with open(folder_name + results_dict_name + '.pkl', 'wb') as fp:
         pickle.dump(results, fp)

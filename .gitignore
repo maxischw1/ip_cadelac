@@ -15,6 +15,7 @@ build/
 datasets/
 trained_models/
 figures/
+sim_results/
 
 c_generated_code/
 acados_ocp.json

@@ -11,7 +11,7 @@ import copy
 from pathlib import Path
 
 from cadelac.control.mj_getters import MjGetters
-from cadelac.control.robot_model import CasadiModel
+from cadelac.control.casadi_model import CasadiModel
 from cadelac.control.kf_state_force import KFStateFee
 
 class PandaSim(MjGetters):

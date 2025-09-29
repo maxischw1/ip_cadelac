@@ -6,9 +6,9 @@ import scipy.linalg
 import copy
 import os
 
-from cadelac.control.robot_model import CasadiModel, RealtimeApprox
+from cadelac.control.casadi_model import CasadiModel, RealtimeApprox
 
-class MPC:
+class AcadosMPC:
     def __init__(self,
                   N_horizon,
                   T_horizon,
@@ -156,18 +156,10 @@ class MPC:
     
 
     def get_weight_mat(self):
-
-        # Qpos = 200*np.ones(self.nq)
-        # Qvel = 100*np.ones(self.nq)
-
         Qpos = 5*np.array([200, 200, 200, 200, 100, 100, 100])
         Qvel = np.array([100, 100, 100, 100, 50, 50, 50])
-
         Q_mat = np.diag(np.concatenate((Qvel, Qpos)))
 
-
-        # R_mat = 0.01*np.eye(self.nu)
-        # R_mat = 0.1*np.eye(self.nu)s
         R_mat = np.diag(np.array([0.2, 0.2, 0.2, 0.2, 1.0, 1.0, 1.0]))
 
         return Q_mat, R_mat
