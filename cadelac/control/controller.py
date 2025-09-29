@@ -36,8 +36,7 @@ class MPC:
         self.ny = self.nx + self.nu
 
         self.lib_dir = None
-        # if delan_model is not None and delan_model != 'KF':
-        if delan_model is not None and delan_model != 'KF' and delan_model != 'KFJac' and realtime_approx != RealtimeApprox.NO_APPROX:
+        if delan_model is not None and delan_model != 'KF' and realtime_approx != RealtimeApprox.NO_APPROX:
             self.lib_dir = delan_model.l4c_inertia_net.shared_lib_dir
             self.lib_name = delan_model.l4c_inertia_net.name
             self.lib_name += ' -l' + delan_model.l4c_potential_net.name
@@ -51,8 +50,7 @@ class MPC:
             print(f'Controller found at {compiled_controller}')
         else:
             print('Controller not found. Compiling it.')
-            build_dir = "acados_build"
-            self.solver = AcadosOcpSolver(self.ocp(), build_dir=build_dir)
+            self.solver = AcadosOcpSolver(self.ocp())
     
     def ocp(self):
         # model = self.model

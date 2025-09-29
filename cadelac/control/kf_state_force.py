@@ -34,21 +34,11 @@ class KFStateFee(KalmanFilter):
                                      Fee_init))
         self.x_est_old = np.copy(self.x_old)
 
-        self.eye3 = np.eye(3)        
-        # self.old_robot_state = initial_state
-
-        # Order qd, q
-        
-        # R = 1e3*np.diag(np.concatenate((1e-5*np.ones(self.nq), 1e-5*np.ones(self.nq))))
-        # Q = 1e2*np.diag(np.concatenate((1e1*np.ones(self.nq), 1e-2*np.ones(self.nq), 1e-5*np.ones(self.nFee))))
+        self.eye3 = np.eye(3)
 
         R = np.diag(np.concatenate((1e-2*np.ones(self.nq), 1e-2*np.ones(self.nq))))
         # Order qd, q, F
         Q = np.diag(np.concatenate((1e0*np.ones(self.nq), 1e-1*np.ones(self.nq), 1e2*np.ones(self.nFee))))
-        # # Order qd, q
-        # # R = np.diag(np.concatenate((1e-2*np.ones(self.nq), 1e-2*np.ones(self.nq))))
-        # # # Order qd, q, F
-        # # Q = np.diag(np.concatenate((1e3*np.ones(self.nq), 1e0*np.ones(self.nq), 1e3*np.ones(self.nFee))))
         P = Q
         self.set_Q(Q)
         self.set_Pcovar(P)
@@ -78,9 +68,6 @@ class KFStateFee(KalmanFilter):
         Ec = np.zeros((self.nx, self.nu))
         Ec[:self.nq,:] = -inertia_mat_inv
 
-        # Dc = np.eye((self.nx, self.nd))
-        # Dc = np.zeros(self.nd)
-        # Dc[2*self.nq:,2*self.nq:] = Jee.T
         Dc = np.eye(self.nd)
 
         Cc = np.eye(self.ny,self.nx)
@@ -88,10 +75,8 @@ class KFStateFee(KalmanFilter):
         self.Ad = np.eye(self.nx) + self.Ts * Ac
         self.Bd = self.Ts * Bc
         self.Ed = self.Ts * Ec
-        # self.Dd = self.Ts * Dc
         self.Dd = Dc
         self.Cd = Cc
-        # print(f'new Ad {self.Ad}')
 
     def compute_prediction(self, x_old, tau_old, Pcovar):
         qd_old, q_old, _ = self.get_data_from_state(x_old)
@@ -117,14 +102,11 @@ class KFStateFee(KalmanFilter):
         Ec = np.zeros((self.nx, self.nu))
         Ec[:self.nq,:] = -inertia_mat_inv
 
-        # Dc = np.eye(self.nd)
-        # Dc[2*self.nq:,2*self.nq] = Jee.T
         Dc = np.eye(self.nd)
 
         self.Ad = np.eye(self.nx) + self.Ts * Ac
         self.Bd = self.Ts * Bc
         self.Ed = self.Ts * Ec
-        # self.Dd = self.Ts * Dc
         self.Dd = Dc
 
         x_pred = self.Ad @ x_old + self.Bd @ tau_old + self.Ed @ tau_known
@@ -142,7 +124,6 @@ class KFStateFee(KalmanFilter):
         return y_new
     
     def get_data_from_state(self, x_state):
-        # qd, q, Fee = x_state[:self.nq, self.nq:2*self.nq, 2*self.nq:]
         qd, q, Fee = x_state[:self.nq], x_state[self.nq:2*self.nq], x_state[2*self.nq:]
         return qd, q, Fee
     
@@ -152,10 +133,6 @@ class KFStateFee(KalmanFilter):
         Jee = pin.computeFrameJacobian(self.model_pin, self.data_pin, q_old,
                                        self.ee_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED)[:self.nFee, :]
         Jee_T = np.array(Jee.T)
-
-        # if np.array_equal(self.old_Jee, Jee):
-        #     print(f'jee not changing {q_old}')
-        # self.old_Jee = copy.deepcopy(Jee)
 
         _, _, force_ee_est = self.get_data_from_state(x_new)
 

@@ -38,13 +38,6 @@ class PandaSim(MjGetters):
 
         self.sim_xml_handles, self.xml_handles, _ = build_models(num_rand_envs=self.rand_env, box_pos=box_pos, box_inertia_flag=box_inertia_flag, box_mass=box_mass, seed=seed)
 
-        # xml_path = (
-        #         Path(__file__).resolve().parent.parent.parent
-        #         / "robots"
-        #         / str(self.robot_name)
-        #         / "scene.xml"
-        #     ).as_posix()
-        # self.mj_model = mujoco.MjModel.from_xml_path(xml_path)
         self.env_id = 0
         self.mj_model = mujoco.MjModel.from_xml_string(self.xml_handles[self.env_id].to_xml_string(), assets=self.xml_handles[self.env_id].get_assets())
         self.mj_data = mujoco.MjData(self.mj_model)
@@ -114,11 +107,6 @@ class PandaSim(MjGetters):
         Bd = dt*Bc
 
         # LQR weight matrix
-        # Qpos = 100*np.ones(ncord)
-        # Qvel = 1000*np.ones(ncord)
-        # # R = 1*np.eye(nu)
-        # R = 0.01*np.eye(nu)
-
         Qpos = 100*np.ones(ncord)
         Qvel = 100*np.ones(ncord)
         R = 0.05*np.eye(nu)
@@ -195,7 +183,6 @@ class PandaSim(MjGetters):
         tau_cmp = tau_g
         if n_steps > 0:
             tau_cmp += Mq @ np.linalg.pinv(Jee) @ Jee_d @ qd
-        #     # tau_cmp -= Mq @ Jee.T @ Jee_d @ qd
 
         return tau_lqr + tau_cmp
 

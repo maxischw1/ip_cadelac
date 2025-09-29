@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 import pinocchio as pin
-
+import copy
 
 from cadelac.control.pin_utils import *
 from cadelac.control.math_utils import *

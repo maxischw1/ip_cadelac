@@ -168,12 +168,7 @@ class PandaMPCSim(PandaSim):
             self.inference_delan_cs_robot_model = self.inference_mpc.robot_model
 
         # Historical Data
-        # if self.delan_model is None or self.delan_model == 'KF' or self.delan_model == 'KFJac':
-        #     self.hist_length = 0
-        # else:
-        #     self.hist_length = delan_model.hist_length
         self.hist_length = hist_length
-        # self.n_lstm_input = delan_model.n_lstm_input
 
         # Init data
         self.init_exc_ref_ok = True
@@ -405,8 +400,6 @@ class PandaMPCSim(PandaSim):
         if self.delan_model == 'KF':
             # param = tau_kf_new.reshape((-1,1))
             param = tau_kf_state.reshape((-1,1))
-        elif self.delan_model == 'KFJac':
-            param = fee_est_state.reshape((-1,1))
         elif self.delan_model is not None:
             param = self.compute_delan_param(y_ref, self.sim_steps, self.solver_status, enc_input)
             # print('delan_mpc param')
@@ -535,14 +528,6 @@ class PandaMPCSim(PandaSim):
         self.log_new_value('tau_mpc', tau_mpc)
         self.log_new_value('diff_tau_mpc', diff_tau_mpc)
 
-    # def log_torque_pin_nom_dynamics(self, q_old, qd_old, qdd, tau):
-    #     # Get torque from nominal model from pinochio
-    #     tau_nom_pin = self.mpc.robot_model.tau_nom_inv_dyn_fn(q_old, qd_old, qdd)
-    #     tau_nom_pin = np.array(tau_nom_pin).squeeze()
-    #     diff_tau_nom_pin = tau - tau_nom_pin
-    #     self.log_new_value('tau_nom_pin', tau_nom_pin)
-    #     self.log_new_value('diff_tau_nom_pin', diff_tau_nom_pin)
-
 
     def init_full_infinity_ref(self, ee_init, q0 = None):
         freq_traj = 0.25
@@ -566,14 +551,6 @@ class PandaMPCSim(PandaSim):
                                                                                                    q0 = q0,
                                                                                                    return_ee_traj = True,
                                                                                                    Nrepeat = Nrepeat)
-        
-        # Nrepeat = int(np.ceil(self.sim_total_time / (1.0 / freq_traj)))
-
-        # self.full_inf_time_traj = np.arange(self.sim_length + self.N_horizon + 10) * self.mpc_period
-        # self.full_inf_q_traj = np.vstack([q_traj] * Nrepeat).T
-        # self.full_inf_qd_traj = np.vstack([qd_traj] * Nrepeat).T
-        # self.full_inf_ee_pos_traj = np.vstack([pos_traj] * Nrepeat).T
-        # self.full_inf_ee_vel_traj = np.vstack([vel_traj] * Nrepeat).T
 
         self.full_inf_time_traj = np.arange(self.sim_length + self.N_horizon + 10) * self.mpc_period
         self.full_inf_q_traj = q_traj.T
@@ -581,25 +558,10 @@ class PandaMPCSim(PandaSim):
         self.full_inf_ee_pos_traj = pos_traj.T
         self.full_inf_ee_vel_traj = vel_traj.T
 
-        # time_traj, _, _, pos_traj, vel_traj = self.ref_gen.generate_full_infinity_joint(model_pin = self.mpc.robot_model.model_pin,
-        #                                                                                            data_pin = self.mpc.robot_model.data_pin,
-        #                                                                                            params = inf_params,
-        #                                                                                            q0 = q0,
-        #                                                                                            return_ee_traj = True)
-        
-
         compute_qd_using_diff = True
         if compute_qd_using_diff:
             qd_diff_traj = []
             traj_length = self.full_inf_q_traj.shape[1]
-            # for i in range(traj_length):
-            #     q_new = self.full_inf_q_traj[:,i]
-            #     if i == 0:
-            #         qd_new = np.zeros_like(q_new)
-            #     else:
-            #         qd_new = (q_new - q_old) / self.mpc_period
-            #     qd_diff_traj.append(qd_new)
-            #     q_old = q_new.copy()
 
             for i in range(traj_length-1):
                 qd_new = (self.full_inf_q_traj[:,i+1] - self.full_inf_q_traj[:,i]) / self.mpc_period
@@ -841,7 +803,7 @@ class PandaMPCSim(PandaSim):
         return param
 
     def get_enc_input(self):
-        if self.delan_model is None or self.delan_model == 'KF' or self.delan_model == 'KFJac':
+        if self.delan_model is None or self.delan_model == 'KF':
             enc_input = np.zeros(1)
         else:
             if self.hist_length == 0:
