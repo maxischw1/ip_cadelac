@@ -15,73 +15,109 @@ If you find this work useful, please consider citing:
 }
 ```
 
-# Installation
+# Installation - Training and Simulation
 
+### 1. Clone the Repository
+```bash
+git clone git@github.com:Schulze18/cadelac.git
+cd cadelac
+git submodule update --recursive --init
+```
 
-## Set Up Conda Environment
-Create and activate the conda environment:  
-`
+### 2. Set Up Conda Environment
+```bash
 conda env create -f cadelac_env.yml
 conda activate cadelac
-`
-
-Install CaDeLaC  
-`
-pip install -e .
-`
-
-Install l4casadi  
-`
-pip install l4casadi==1.4.1 --no-build-isolation
-`
-
-
-
-### Install Acados
-(Original installation instructions)[https://docs.acados.org/installation/].
 ```
-git clone https://github.com/acados/acados.git
+
+### 3. Install CaDeLaC as a python pkg and additional Dependencies
+```bash
+pip install -e .
+pip install l4casadi==1.4.1 --no-build-isolation
+```
+
+
+### 4. Install Acados (v0.4.3)
+Follow the [official installation guide](https://docs.acados.org/installation/):  
+```bash
 cd acados
-git submodule update --recursive --init
-mkdir -p build
-cd build
+mkdir -p build && cd build
 cmake -DACADOS_WITH_QPOASES=ON ..
-# add more optional arguments e.g. -DACADOS_WITH_OSQP=OFF/ON -DACADOS_INSTALL_DIR=<path_to_acados_installation_folder> above
 make install -j4
 ```
 
-
-Install Acados Interface
-```
+Install the Python interface:  
+```bash
 pip install -e acados/interfaces/acados_template
 ```
 
-Add to .bashrc
-```
+Add the following to your `.bashrc`:  
+```bash
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"<acados_root>/lib"
 export ACADOS_SOURCE_DIR="<acados_root>"
 ```
 
+---
 
-### libfranka install
-Add installed compiler (gcc-12) to the path:
+# Installation for Real Robot Experiments
+### 1. Create a ROS Workspace
+```bash
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+git clone git@github.com:Schulze18/cadelac.git
+cd cadelac
+git submodule update --recursive --init
 ```
-export CC=/home/${USER}/miniconda3/envs/${ENV_NAME}/bin/x86_64-conda-linux-gnu-gcc
-export CX=/home/${USER}/miniconda3/envs/${ENV_NAME}/bin/x86_64-conda-linux-gnu-g++
+
+
+### 2. Set Up Conda Environment with ROS
+```bash
+conda env create -f cadelac_ros_env.yml
+conda activate cadelac
 ```
-Install libfrank 0.13.3
 
-Compile franka_ros
-catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH={PATH_TO_LIBFRANKA}/libfranka/build
+To ensure **Acados** and **Libfranka** use the same compiler, add the installed compiler (e.g., `gcc-12`) to your path (recommended in `.bashrc`):  
+```bash
+export CC=$HOME/miniconda3/envs/cadelac_ros/bin/x86_64-conda-linux-gnu-gcc
+export CXX=$HOME/miniconda3/envs/cadelac_ros/bin/x86_64-conda-linux-gnu-g++
+```
+
+### 3. Install CaDeLaC as a python pkg and additional Dependencies
+```bash
+pip install -e .
+pip install l4casadi==1.4.1 --no-build-isolation
+```
+
+### 4. Install Acados (v0.4.3)
+Same procedure as in the *Training and Simulation* section.
 
 
-roslaunch franka_example_controllers effort_joint_controller.launch robot_ip:=172.16.0.2 load_gripper:=true robot:=panda
+### 5. Install Libfranka (0.13.3)
+[Libfranka](https://github.com/frankaemika/libfranka) provides low-level control of Franka Emika research robots.
+1. Complete **System Requirements** and **Installing dependencies** from the official repository.
+2. Clone and build:  
+   ```bash
+   git clone --recurse-submodules https://github.com/frankarobotics/libfranka.git
+   cd libfranka
+   ```
+3. Checkout to version 0.13.3: 
+   ```bash
+   git checkout 0.13.3
+   git submodule update
+   ```
+4. Build and compile   
+   ```bash
+   mkdir build && cd build
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/opt/openrobots/lib/cmake -DBUILD_TESTS=OFF ..
+   make
+   ```
 
-PPFLAGS
-acados commit:
-0d03b8570
-
-v0.4.3
+### 6. Build the ROS Workspace
+```bash
+cd ~/catkin_ws
+catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH={PATH_TO_LIBFRANKA}/libfranka/build -j2
+source devel/setup.bash
+```
 
 # Context-Aware DeLaN
 All scripts related to training the proposed models are located in the `learning` folder.  

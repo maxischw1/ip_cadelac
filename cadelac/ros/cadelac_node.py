@@ -18,9 +18,7 @@ from franka_example_controllers.msg import FFWDTorquePDUpdate
 from control_msgs.msg import FollowJointTrajectoryAction, GripperCommandAction, GripperCommandGoal, GripperCommandActionGoal
 from cadelac_msgs.msg import MPCDebug
 
-from .util import go_to, JointStateListener, ControllerManager, JointStateFilteredListener, first_order_low_pass_filter
-
-from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
+from cadelac.ros.util import go_to, JointStateListener, ControllerManager, JointStateFilteredListener, first_order_low_pass_filter
 
 from cadelac.control.acados_mpc import AcadosMPC
 from cadelac.control.casadi_model import RealtimeApprox
@@ -30,6 +28,7 @@ from cadelac.control.pin_utils import *
 from cadelac.control.reference_generator import ReferenceGenerator
 from cadelac.control.l4c_context_aware_delan import L4CContextAwareDeLaN
 
+from pathlib import Path
 
 class CaDeLaCNode:
     def __init__(self):
@@ -39,15 +38,33 @@ class CaDeLaCNode:
         self.control_mode = 'MPC'
         # self.control_mode = 'LQR'
         
+        #### Change this options to select different experiments or mpc mode ######
+        # self.ref_type = 'sin'
+        self.ref_type = 'FULL_INF'
+        # self.ref_type = 'PICK_AND_PLACE'
+
+        self.mpc_mode = 'nominal'
+        # controller = 'kf'
+        # controller = 'cadelac'
+
+        # On the first run, compiling the Acados controller can take several minutes,
+        # which may start the experiment before the operator is ready.
+        # This flag ensures the controller is only compiled, not executed.
+        # After the initial run, set the flag to False and rerun the script;
+        # the compiled controller will then be used directly.
+        self.compilation_run = True
+
+        #######################################################################
+
+
+
         # Init MPC
         self.nq = 7
         self.init_time_data()
         self.init_mpc()
         self.init_move_avg()
         self.end_traj = False
-        # self.ref_type = 'sin'
-        self.ref_type = 'FULL_INF'
-        # self.ref_type = 'PICK_AND_PLACE'
+
 
         self.logger = Logger(time_log=True)
 
@@ -94,8 +111,6 @@ class CaDeLaCNode:
         self.flag_init_mpc = False
         # self.ref_init_length = self.hist_length + 5
         self.ref_init_length = 0
-
-        # get_load_pos = np.array
 
         if self.ref_type != 'FULL_INF':
             self.open_gripper()
@@ -191,47 +206,26 @@ class CaDeLaCNode:
         self.expl_dyn = True
         realtime_approx = RealtimeApprox.NO_APPROX
 
-
-        # controller = 'kf'
-        # controller = 'delan'
-        controller = 'nominal'
-
         self.hist_length = 15
-        if controller == 'kf':
+        if self.mpc_mode == 'kf':
             self.delan_model = 'KF'
-            # name_suffix = '_kf_new_QR'
-            # name_suffix = '_kf_QR_v2'
-            name_suffix = '_kf_QR_v2_repeat'
+            name_suffix = '_kf'
 
-        elif controller == 'delan':
+        elif self.mpc_mode == 'cadelac':
 
             n_lstm_output = 10
             n_enc_input = n_lstm_output
-            fwd_embedding = False
-
-            # model_folder = 'learned_dynamics/models/res_model/panda_good_models/'
-            # # filename = 'lr_sch_Exp_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_norm_tau_1_ref_exec_init3_panda_rand_envs_25_kf_1_samples_515000_stime_10.torch'
-            # # name_suffix = '_delan_v3_envs_25_kf_1_new_QR'
-            # filename = 'lr_sch_Exp_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin__mb_1024_norm_tau_1_ref_exec_init3_panda_rand_envs_100_kf_0_samples_515000_stime_10.torch'
-            # name_suffix = '_delan_v3_envs_100_kf_0_new_QR'
-
-            model_folder = 'learned_dynamics/models/res_model/panda_good_models/good_models_2025_02_24/'
-            filename = 'lr_sch_No_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise__mb_1024_norm_tau_1_ref_exec_init3_rand_envs_nom_101_kf_0_samples_1040300_stime_10.torch'
-            name_suffix = '_delan_v4_envs_101_noise_kf_0_new_QR_repeat'
-
-
-            # filename = 'lr_sch_Exp_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise__mb_1024_norm_tau_1_ref_exec_init3_rand_envs_nom_101_kf_0_samples_1040300_stime_10.torch'
-            # name_suffix = '_delan_v5_envs_101_noise_kf_0_QR_v2'
+            
+            CONTROL_DIR = str(Path(__file__).resolve().parents[1]) + '/control'
+            model_folder = CONTROL_DIR + '/learned_dynamics/models/res_model/'
+            filename = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
+            name_suffix = '_cadelac'
 
             load_file = model_folder + filename
             print(f'Loading file {load_file}')
 
             torch_model = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
-            if 'n_width' not in torch_model['hyper'].keys():
-                torch_model['hyper']['n_width'] = torch_model['hyper']['n_width_inertia']
-                torch_model['hyper']['n_depth'] = torch_model['hyper']['n_depth_inertia']
-            l4c_delan = L4CContextAwareDeLaN(torch_model, n_dof=self.nq, n_enc_input=n_enc_input,
-                                    fwd_embedding=fwd_embedding, device='cpu')
+            l4c_delan = L4CContextAwareDeLaN(torch_model, n_dof=self.nq, n_enc_input=n_enc_input, device='cpu')
             self.delan_model = l4c_delan
 
             self.filter_enc_input_freq = 2
@@ -242,33 +236,7 @@ class CaDeLaCNode:
 
         else:
             self.delan_model = None
-            # name_suffix = '_nominal_new_QR'
-            # name_suffix = '_nominal_QR_v2'
-            name_suffix = '_nominal_QR_v2_repeat'
-
-        self.inference_delan = False
-        if self.inference_delan:
-            # model_folder = 'learned_dynamics/models/res_model/panda_good_models/'
-            # filename = 'lr_sch_Exp_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin__mb_1024_norm_tau_1_ref_exec_init3_panda_rand_envs_100_kf_0_samples_515000_stime_10.torch'
-
-            model_folder = 'learned_dynamics/models/res_model/panda_good_models/good_models_2025_02_24/'
-            filename = 'lr_sch_No_hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise__mb_1024_norm_tau_1_ref_exec_init3_rand_envs_nom_101_kf_0_samples_1040300_stime_10.torch'
-
-            load_file = model_folder + filename
-            print(f'Loading mode for inference {load_file}')
-
-            state = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
-            self.torch_delan_model = ContextAwareDeLaN(self.nq, **state['hyper'])
-            self.torch_delan_model.load_state_dict(state['state_dict'])
-            self.torch_delan_model = self.torch_delan_model.cpu()
-
-            self.torch_zeros = torch.zeros(1,self.nq).float().to(self.torch_delan_model.device)
-
-            self.torch_enc_input_freq = 2
-            filter_Ts = 1.0 / 50.0
-            self.torch_enc_input_alpha = filter_Ts / (filter_Ts + 1.0 / (2 * np.pi * self.torch_enc_input_freq))
-            print(f'Torch Enc input filtered {self.torch_enc_input_alpha}')
-            self.torch_enc_input_filtered_old = np.zeros(10)
+            name_suffix = '_nominal'
 
         # # Setup MPC
         RTI_mode = True
@@ -371,48 +339,27 @@ class CaDeLaCNode:
                     init_time = time.time()
                     dataset = {}
                     for key in logger_final.logged_data.keys():
-                        # if run == 0:
-                        if True:
-                            dataset[key] = []
+                        dataset[key] = []
                         dataset[key].append(logger_final.logged_data[key])
                     folder_name = 'datasets_real/2025_03_05/'
                     n_samples = dataset['t'][-1].shape[0]
-                    # model_str = 'acc_nom_mpc_'
-                    # model_str = model_str + 'cte_ref_'
-                    # model_str = model_str + 'q1_ref_'
-                    # model_str = model_str + 'q1235_ref_'
-                    # model_str = model_str + '2kg_load_q1_ref'
-                    # model_str = model_str + '3kg_load_static_ref'
+
                     if self.delan_model is None:
                         model_str = 'nom_'
                     elif self.delan_model == 'KF':
                         model_str = 'kf_' + str(self.kf_state_Fee.nFee) + '_'
                     else:
                         model_str = 'delan_v4_'
-                    # model_str = model_str + 'gripper_'
-                    # model_str = model_str + '_q456_exc'
-                    # model_str = model_str + '_q0123456_exc_ref_v4_'
                     model_str = model_str + '1kg_'
-                    # model_str = model_str + '2kg_'
-                    # model_str = model_str + '3kg_'
-                    # model_str = model_str + 'gripper_1kg_'
-                    # model_str = model_str + 'gripper_2kg_'
-                    # model_str = model_str + 'gripper_3kg_'
+
                     if self.ref_type == 'FULL_INF':
-                        # model_str = model_str + '_full_inf_v7_'
-                        model_str = model_str + '_full_inf_v8_theta_0_'
+                        model_str = model_str + '_full_inf_theta_0_'
                     elif self.ref_type == 'PICK_AND_PLACE':
-                        model_str = model_str + '_PP_v8_'
+                        model_str = model_str + '_PP_'
                     else:
-                        # model_str = model_str + '_setpoint_'
-                        # model_str = model_str + '_q1_ref_v2_'
-                        # model_str = model_str + '_q1_ref_v3_'
-                        # model_str = model_str + 'q1_ref_'
                         model_str = model_str + 'q12_ref_'
-                        # model_str = model_str + 'q123_ref_'
-                        # model_str = model_str + 'q1235_ref_'
-                        # model_str = model_str + 'q012356_ref_'
-                    model_str = model_str + 'QR_V2_'
+
+                    model_str = model_str
                     filename = model_str + 'samples_' + str(n_samples) + '_dataset_mpc.pkl'
                     with open(folder_name + filename, 'wb') as fp:
                         pickle.dump(dataset, fp)
@@ -476,17 +423,9 @@ class CaDeLaCNode:
         theta = -0/180*np.pi
         
         inf_params = {}
-        # inf_params['amp'] = np.array([0, 0.2, 0.2])
-        # inf_params['amp'] = np.array([0, 0.5, 0.25])
-        # inf_params['theta'] = -30/180*np.pi
-        # inf_params['amp'] = np.array([0, 0.25, 0.15])
-        # inf_params['amp'] = np.array([0, 0.20, 0.1]) # freq 0.4
-        # inf_params['amp'] = np.array([0, 0.30, 0.12]) # freq 0.5
-        # inf_params['amp'] = np.array([0, 0.30, 0.15]) # freq 0.5
         inf_params['amp'] = amp
         inf_params['theta'] = theta
         inf_params['freq'] = freq_traj
-        # inf_params['theta'] = theta
         inf_params['center_pos'] = inf_ee_pos_init
         inf_params['Ts'] = self.mpc_period
 
@@ -615,48 +554,13 @@ class CaDeLaCNode:
 
 
     def init_mpc_sin_ref(self):
-        # self.q_sin_ref_amp = np.random.uniform(low=np.zeros((self.nq,1)), high=np.array([[1.5, 1.0, 1.5, 1.0, 1.5, 1.0, 1.5]]).T, size=(self.nq,1))
-        # self.q_sin_ref_freq = np.random.uniform(low=np.zeros((self.nq,1)), high=0.15*np.ones((self.nq,1)), size=(self.nq,1))
         self.q_sin_ref_amp = np.zeros((self.nq,1))
         self.q_sin_ref_freq = np.zeros((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
         self.q_sin_ref_amp = np.array([0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1)) # tested ref
         self.q_sin_ref_freq = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.15, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1)) # v2
-        # self.q_sin_ref_freq = np.array([0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1)) # v3
-        # self.q_sin_ref_freq = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-
-        # self.q_sin_ref_amp = np.array([0.0, 0.15, 0.15, 0.0, 0.0, 00, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.8, 0.7, 0.0, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-
-        # self.q_sin_ref_amp = np.array([0.0, 0.15, 0.15, 0.15, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.8, 0.7, 0.2, 0.0, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.1, 0.1, 0.2, 0.3, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.8, 0.6, 0.15, 0.15, 0.0, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.15, 0.15, 0.15, 0.0, 0.3, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.8, 0.7, 0.2, 0.0, 0.1, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.0, 0.1, 0.1, 0.1, 0.05, 0.02, 0.0]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.0, 0.8, 0.6, 0.15, 0.15, 0.1, 0.0]).reshape((self.nq,1))
-
-        # Reference working for Delan MPC
-        # self.q_sin_ref_amp = np.array([0.1, 0.15, 0.15, 0.15, 0.2, 0.3, 0.2]).reshape((self.nq,1))
-        # self.q_sin_ref_freq = np.array([0.2, 0.8, 0.7, 0.2, 0.1, 0.1, 0.1]).reshape((self.nq,1))
-
-        # EXC System only with gripper
-        # self.q_sin_ref_amp = np.array([0.2, 0.3, 0.2, 0.3, 0.5, 0.3, 0.3]).reshape((self.nq,1)) #v3
-        # self.q_sin_ref_freq = np.array([0.5, 0.3, 0.5, 0.15, 0.2, 0.2, 0.2]).reshape((self.nq,1))
-        # self.q_sin_ref_amp = np.array([0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5]).reshape((self.nq,1)) #v4
-        # self.q_sin_ref_freq = np.array([0.5, 0.3, 0.5, 0.25, 0.2, 0.2, 0.2]).reshape((self.nq,1))
-
-        # self.q_sin_ref_amp = np.array([0.0, 0.0, 0.0, 0.0, 1.0, 1.5, 1.5]).reshape((self.nq,1)) 
-        # self.q_sin_ref_freq = np.array([0.0, 0.0, 0.0, 0.0, 0.15, 0.2, 0.2]).reshape((self.nq,1))
-
 
         self.q_sin_ref_phase = np.zeros((self.nq,1))
         self.q_sin_ref_offset = np.copy(self.pos_safe_init).reshape((self.nq,1))
-        # self.q_sin_ref_offset = np.copy(self.init_joint_pos).reshape((self.nq,1))
         print(f'Offset qsin reference {self.q_sin_ref_offset}')
 
     def generate_reference(self, total_traj_time):
@@ -754,8 +658,6 @@ class CaDeLaCNode:
         des_tau = np.array(self.cs_robot_model.cpin_tau_cg_fn(des_pos, des_vel)).reshape(-1)
         des_tau = des_tau 
         self.pub_ffwd_cmd(des_pos, des_vel, des_tau)
-        # print(des_pos)
-        # print(des_tau)
 
     def update_mpc(self, joint_state_msg):
 
@@ -778,7 +680,6 @@ class CaDeLaCNode:
 
         # Log current state
         init_log_time = time.time()
-        # self.log_new_data(self.exp_steps * self.joint_ctrl_period, qp_ref = qp_ref, qv_ref = qd_ref)
         self.total_time_log += time.time() - init_log_time
 
         # Update MPC reference
@@ -791,14 +692,8 @@ class CaDeLaCNode:
         self.debug_kf_tau_est = np.copy(kf_tau_est)
 
         init_param_comp = time.time()
-        # if self.delan_model is not None and self.realtime_approx != RealtimeApprox.NO_APPROX:
-        # tau_kf = np.zeros_like(torque_ref)
-        # fee_est_new = np.zeros(3)
         if self.delan_model == 'KF':
-            # self.log_kf_data()
             param = kf_tau_est.reshape((-1,1))
-            # value_tf = np.zeros_like(kf_tau_est)
-            # param = value_tf.reshape((-1,1))
         elif self.delan_model is not None:
             param = self.compute_delan_param(enc_input)
         self.total_time_param += time.time() - init_param_comp
@@ -828,7 +723,6 @@ class CaDeLaCNode:
         self.mpc_torque_debug = np.copy(q_mpc_torque)
         # print(f'mpc torque {q_mpc_torque}')
         if self.flag_init_mpc:
-            # rospy.sleep(0.010)
             self.pub_ffwd_cmd(qp_ref, qd_ref, q_mpc_torque)
 
         self.pub_cmd_time = time.time() - init_update_time
@@ -977,17 +871,19 @@ class CaDeLaCNode:
         # print('new cb')
         joint_state_msg = copy.copy(self.joint_state_listener.get_data())
 
-        # self.update_gravity_comp(joint_state_msg)
-        if self.control_mode == 'MPC':
-            self.update_mpc(joint_state_msg)
-            if self.flag_init_mpc:
-                self.exp_steps += 1
-            else:
-                self.flag_init_mpc = True
+        ## Safe check
+        if self.compilation_run is False:
 
-        if self.control_mode == 'LQR':
-            self.update_lqr(joint_state_msg)
-            self.exp_steps += 1
+            if self.control_mode == 'MPC':
+                self.update_mpc(joint_state_msg)
+                if self.flag_init_mpc:
+                    self.exp_steps += 1
+                else:
+                    self.flag_init_mpc = True
+
+            if self.control_mode == 'LQR':
+                self.update_lqr(joint_state_msg)
+                self.exp_steps += 1
 
 
     def get_ee_data(self, q_new, qd_new):
@@ -1051,60 +947,13 @@ class CaDeLaCNode:
             debug_msg.tau_nom_pin = np.array(self.logger.logged_data['tau_nom_pin'][-1]).tolist()
             debug_msg.m_nom_pin = np.array(self.logger.logged_data['m_nom_pin'][-1]).tolist()
             debug_msg.c_nom_pin = np.array(self.logger.logged_data['c_nom_pin'][-1]).tolist()
-            # debug_msg.g_nom_pin = np.array(self.logger.logged_data['g_nom_pin'][-1]).tolist()
-            # print('debug joint')
-            # print(np.copy(self.mavg_diff_tau))
-            # print(np.array(debug_joint_state.tau_nom[:7]))
+
             debug_msg.g_nom_pin = np.array(debug_joint_state.tau_nom_filtered[:7]).tolist()
             debug_msg.diff_tau_g_nom_pin = (tau_read - np.array(debug_joint_state.tau_nom_filtered[:7])).tolist()
 
-            # debug_msg.diff_tau_nom_pin = np.array(self.logger.logged_data['diff_tau_nom_pin'][-1]).tolist()
             debug_msg.diff_tau_nom_pin = np.copy(self.mavg_diff_tau).tolist()
             debug_msg.diff_tau_m_nom_pin = np.array(self.logger.logged_data['diff_tau_m_nom_pin'][-1]).tolist()
             debug_msg.diff_tau_c_nom_pin = np.array(self.logger.logged_data['diff_tau_c_nom_pin'][-1]).tolist()
-            # debug_msg.diff_tau_g_nom_pin = np.array(self.logger.logged_data['diff_tau_g_nom_pin'][-1]).tolist()
-
-        # if self.delan_model is not None and self.delan_model != 'KF':
-        if self.inference_delan:
-
-            # Get Nominal model
-            H_nom = np.array(self.cs_robot_model.cpin_H_fn(q))
-            nom_tau_cg = np.array(self.cs_robot_model.cpin_tau_cg_fn(q, qd)).reshape(-1)
-
-            q_torch = torch.from_numpy(q).float().to(self.torch_delan_model.device).view(1, -1)
-            qd_torch = torch.from_numpy(qd).float().to(self.torch_delan_model.device).view(1, -1)
-            qdd_torch = torch.from_numpy(qdd).float().to(self.torch_delan_model.device).view(1, -1)
-            lstm_input = np.concatenate((self.hist_q, self.hist_qd, self.hist_diff_tau_nom), axis=-1)
-            lstm_input_torch = torch.from_numpy(lstm_input).float().to(self.torch_delan_model.device).view(1, self.hist_length, -1)
-
-            delan_enc_input = self.torch_delan_model.lstm(lstm_input_torch).squeeze()
-            delan_enc_input = delan_enc_input.cpu().detach().numpy()
-
-            delan_enc_input_filtered = first_order_low_pass_filter(delan_enc_input, self.torch_enc_input_filtered_old, self.torch_enc_input_alpha)
-            self.torch_enc_input_filtered_old = np.copy(delan_enc_input_filtered)
-
-            debug_msg.enc_input = delan_enc_input_filtered.tolist()
-            debug_msg.enc_input_raw = delan_enc_input.tolist()
-
-            delan_tau_g = self.torch_delan_model.inv_dyn(q_torch, self.torch_zeros, self.torch_zeros, lstm_input_torch).squeeze()
-            delan_tau_c = self.torch_delan_model.inv_dyn(q_torch, qd_torch, self.torch_zeros, lstm_input_torch).squeeze() - delan_tau_g
-            delan_tau_m = self.torch_delan_model.inv_dyn(q_torch, self.torch_zeros, qdd_torch, lstm_input_torch).squeeze() - delan_tau_g
-
-            delan_tau_g = delan_tau_g.cpu().detach().numpy()
-            delan_tau_c = delan_tau_c.cpu().detach().numpy()
-            delan_tau_m = delan_tau_m.cpu().detach().numpy()
-
-            delan_tau_cg = delan_tau_c + delan_tau_g
-            delan_tau = delan_tau_m + delan_tau_cg
-
-            tau_total = H_nom @ qdd + nom_tau_cg + delan_tau
-
-            debug_msg.tau_total_nom_delan = tau_total
-            debug_msg.delan_tau = delan_tau
-            debug_msg.delan_tau_m = delan_tau_m
-            debug_msg.delan_tau_cg = delan_tau_cg
-            debug_msg.delan_tau_c = delan_tau_c
-            debug_msg.delan_tau_g = delan_tau_g
 
         time_values = [self.solver_time]
         time_values += [self.pub_cmd_time]
@@ -1117,7 +966,6 @@ class CaDeLaCNode:
         time_names += ['enc']
 
         debug_msg.times_values = time_values
-        # debug_msg.time_names = time_names
 
 
         # Publish

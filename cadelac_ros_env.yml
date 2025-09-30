@@ -27,6 +27,7 @@ dependencies:
 - ros-noetic-tf
 - ros-noetic-tf-conversions
 - ros-noetic-eigen-conversions
+- ros-noetic-xacro
 - pip:
   - mujoco==3.2.4
   - dm_control==1.0.24
@@ -36,3 +37,4 @@ dependencies:
   - scikit-build>=0.17
   - cmake==3.27
   - ninja>=1.11
+  - dill

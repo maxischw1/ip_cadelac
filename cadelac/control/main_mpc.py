@@ -1,3 +1,4 @@
+import os
 import mujoco
 
 from cadelac.control.panda_sim import PandaSim, build_models
