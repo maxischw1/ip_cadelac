@@ -13,7 +13,6 @@ build/
 
 # Cadelac
 datasets/
-trained_models/
 figures/
 sim_results/
 

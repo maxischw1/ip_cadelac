@@ -15,11 +15,8 @@ if os.getenv("DISPLAY"):
     except ImportError:
         pass
 
-import matplotlib.pyplot as plt
 
-from cadelac.learning.models.DeLaN_model import DeepLagrangianNetwork
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
-
 from cadelac.learning.data_scripts.replay_memory import PyTorchReplayMemory
 from cadelac.learning.data_scripts.utils import init_env, load_dataset, plot_torques
 from pathlib import Path
@@ -33,15 +30,14 @@ if __name__ == "__main__":
     parser.add_argument("-i", nargs=1, type=int, required=False, default=[0, ], help="Set the CUDA id.")
     parser.add_argument("-s", nargs=1, type=int, required=False, default=[0, ], help="Set the random seed")
     parser.add_argument("-r", nargs=1, type=int, required=False, default=[1, ], help="Render the figure")
-    parser.add_argument("-l", nargs=1, type=int, required=False, default=[0, ], help="Load the DeLaN model")
+    parser.add_argument("-l", nargs=1, type=int, required=False, default=[1, ], help="Load the DeLaN model")
     parser.add_argument("-m", nargs=1, type=int, required=False, default=[1, ], help="Save the DeLaN model")
-    seed, cuda, render, load_model, save_model = init_env(parser.parse_args())
+    parser.add_argument("-f", nargs=1, type=int, required=False, default=[0, ], help="Learn full robot model")
+    seed, cuda, render, load_model, save_model, full_model = init_env(parser.parse_args())
 
     # Construct Hyperparameters:
-    nn_id = "ContextAware"
-    if nn_id == "default":
-        nn_type = DeepLagrangianNetwork
-    elif nn_id == "ContextAware":
+    nn_id = "ContextAware" # Equivalent to DeLaN for hist_length = 0
+    if nn_id == "ContextAware":
         nn_type = ContextAwareDeLaN
 
     # Read the dataset:
@@ -50,7 +46,6 @@ if __name__ == "__main__":
     loss_power = False
 
     n_dof = 7
-    full_model = False
     flag_normalize_tau = True
     sample_offset = 1
     save_checkpoint_model = True
@@ -58,9 +53,7 @@ if __name__ == "__main__":
 
     add_noise_to_load_data = True
 
-    LEARNING_DIR = Path(__file__).resolve().parents[0]
-    DATA_DIR = LEARNING_DIR / "data"
-    DATA_DIR = str(DATA_DIR)
+    LEARNING_DIR = str(Path(__file__).resolve().parents[0])
 
     ## LSTM parameters
     hist_length = 15 if (nn_id == "ContextAware" and not full_model) else 0
@@ -71,28 +64,11 @@ if __name__ == "__main__":
     n_lstm_depth = 5
 
     if full_model == False:
-        # filename = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
-        # filename = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
-        # filename_short = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
-
-        # filename = 'rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-        # filename_short = 'rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-
-        # filename = 'v3_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-        # filename_short = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
-        
-        filename = 'relabel_v3_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
-        filename_short = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
-
+        dataset_name = 'panda_mj_101_rand_envs_20_runs_50Hz_lqr'
     else:
-        # filename = 'panda_mj_no_payload_50Hz_lqr_kf'
-        # filename_short = 'panda_mj_no_payload_50Hz_lqr_kf'
-
-        filename = 'v3_panda_mj_no_payload_50Hz_lqr_kf'
-        filename_short = 'v3_panda_mj_no_payload_50Hz_lqr_kf'
+        dataset_name = 'panda_mj_nominal_env_20_runs_50Hz_lqr'
 
     if full_model:
-        test_label = ['env_0_run_1','env_0_run_2']
         test_label = []
         model_type_folder = 'full_model/panda/' + nn_id
     else:
@@ -101,12 +77,9 @@ if __name__ == "__main__":
         else:
             test_label = ['env_0_run_1','env_0_run_2']
         model_type_folder = 'res_model/panda/' + nn_id
-    filename_full = DATA_DIR + '/datasets/panda/' + filename + '.pkl'
+    dataset_path = LEARNING_DIR + '/datasets/panda/' + dataset_name + '.pkl'
 
-    if hist_length > 0:
-        filename_full = filename_full
-
-    train_data, test_data, divider, dt_mean = load_dataset(filename=filename_full, test_label=test_label,
+    train_data, test_data, divider, dt_mean = load_dataset(filename=dataset_path, test_label=test_label,
                                                         full_model=full_model, sample_offset=sample_offset,
                                                         dataset_use=dataset_use, 
                                                         n_dof=n_dof, hist_length=hist_length, 
@@ -165,32 +138,22 @@ if __name__ == "__main__":
              'n_lstm_depth': n_lstm_depth,
              'hist_length': hist_length,
              'act_ld': 'Softplus',
-             'max_epoch': 1500
+             'max_epoch': 20
             }
 
     model_name = 'epochs_' + str(hyper['max_epoch'])
-    model_name += '_nw_inertia_' + '_'.join(str(x) for x in hyper['net_arch_inertia'])
-    model_name += '_nw_pot_' + '_'.join(str(x) for x in hyper['net_arch_pot'])
-
-    model_name += '_pin'
     if add_noise_to_load_data:
         model_name += '_noise_'
-    model_name += '_mb_' + str(minibatch) + '_norm_tau_' + str(int(flag_normalize_tau)) + '_'
+    model_name += dataset_name + '.torch'
 
-    model_name += filename_short + '.torch'
-    if nn_id == "ContextAware":
-        model_name = 'hist_' + str(hist_length) + '_lstm_in_' + str(n_lstm_input) + '_h_' + str(n_lstm_hidden) + '_out_' + str(n_lstm_output) + '_d_' + str(n_lstm_depth) + '_act_ld_' + str(hyper['act_ld']) + '_' + model_name
-    else:
-        model_name = nn_id + '_' + model_name
-
-
-    # model_name = 'hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_1500_nw_inertia_30_20_nw_pot_30_20_pin_noise__mb_1024_norm_tau_1_v3_panda_mj_101_rand_envs_50Hz_lqr_kf.torch'
-    model_name = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
+    # Loading trained model for IROS2025
+    if not full_model and load_model == 2:
+        model_name = 'iros2025_epochs_3000_panda_mj_101_rand_envs_20_runs_50Hz_lqr.torch'
 
     # Load existing model parameters:
     if load_model:
-        load_file = DATA_DIR + f"/trained_models/{model_type_folder}/{model_name}"
-        # state = torch.load(load_file)#, weights_only=False)
+        print(f'Loading model: {model_name}')
+        load_file = LEARNING_DIR + f"/trained_models/{model_type_folder}/{model_name}"
         state = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
 
         delan_model = nn_type(n_dof, **state['hyper'])
@@ -230,10 +193,6 @@ if __name__ == "__main__":
     norm_tau_np = norm_tau.detach().cpu().numpy()
 
     init_param_dict = delan_model.state_dict()
-    # sum_param = 0.0
-    # for key in init_param_dict.keys():
-    #     sum_param += init_param_dict[key].reshape(-1).shape[0]
-    # print(f'Number of parameters {sum_param}')
     sum_param = 0.0
     lstm_param = 0.0
     for key in init_param_dict.keys():
@@ -251,9 +210,9 @@ if __name__ == "__main__":
         t0_epoch = time.perf_counter()
 
         if save_checkpoint_model:
-            if epoch_i > 0 and (epoch_i % 500) == 0:
+            if epoch_i > 0 and (epoch_i % 2) == 0:
                 print(f'Saving checkpoint model epoch: {epoch_i}')
-                CHECKPOINT_DIR = DATA_DIR + f"/trained_models/{model_type_folder}/checkpoint/"
+                CHECKPOINT_DIR = LEARNING_DIR + f"/trained_models/{model_type_folder}/checkpoint/"
                 if not os.path.exists(CHECKPOINT_DIR):
                     os.makedirs(CHECKPOINT_DIR)
                 torch.save({"epoch": epoch_i,
@@ -324,7 +283,7 @@ if __name__ == "__main__":
 
     # Save the Model:
     if save_model and not load_model:
-        folder_model = DATA_DIR + f"/trained_models/{model_type_folder}"
+        folder_model = LEARNING_DIR + f"/trained_models/{model_type_folder}"
         if not os.path.isdir(folder_model):
             os.makedirs(folder_model)
         print(f'Saving model: {model_name}')
@@ -363,12 +322,12 @@ if __name__ == "__main__":
     t_batch = (time.perf_counter() - t0_batch) / (3. * float(test_qp.shape[0]))
 
     # Compute Errors:
-    test_dEdt = np.sum(test_tau * test_qv, axis=1).reshape((-1, 1))
+    test_dEdt = np.sum(test_tau * test_qv, axis=1)
     err_g = 1. / float(test_qp.shape[0]) * np.sum((delan_g - test_g) ** 2 / norm_tau_np)
     err_m = 1. / float(test_qp.shape[0]) * np.sum((delan_m - test_m) ** 2 / norm_tau_np)
     err_c = 1. / float(test_qp.shape[0]) * np.sum((delan_c - test_c) ** 2 / norm_tau_np)
     err_tau = 1. / float(test_qp.shape[0]) * np.sum((delan_tau - test_tau) ** 2 / norm_tau_np)
-    err_dEdt = 1. / float(test_qp.shape[0]) * np.sum((delan_dEdt - test_dEdt) ** 2 / norm_tau_np)
+    err_dEdt = 1. / float(test_qp.shape[0]) * np.sum((delan_dEdt - test_dEdt) ** 2)
 
     print("\nPerformance:")
     print("                Torque MSE = {0:.3e}".format(err_tau))

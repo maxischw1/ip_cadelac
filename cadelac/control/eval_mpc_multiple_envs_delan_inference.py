@@ -1,3 +1,4 @@
+import argparse
 import torch
 import numpy as np
 import pickle
@@ -16,24 +17,29 @@ def compute_rms(error):
 
 if __name__ == "__main__":
 
+    ctrl_list = ['Nominal', 'EKF', 'CaDeLaC']
+
+    # Read Command Line Arguments:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", type=int, default=0, help="Controller option.")
+    args = parser.parse_args()
+
+    ctrl_index = int(args.c)
+    ctrl_name = ctrl_list[ctrl_index]
+
     # Model Parameteres
     n_dof = 7
-    use_delan = True
-    kf_filter = False
     hist_length = 15
     n_lstm_output = 10
     n_enc_input = n_lstm_output
     nx = 2 * n_dof
     RTI_mode = True
 
-    name_suffix = '_kf' if kf_filter else '_nominal'
-
     # Evaluation parameters
     n_train_envs = 100
-    n_eval_envs = 5
-    n_runs = 10
+    n_eval_envs = 30
+    n_runs = 20
     Tsim_run = 10
-    # n_runs = 2
 
     n_rand_envs = n_train_envs + n_eval_envs
     box_pos = None
@@ -49,10 +55,13 @@ if __name__ == "__main__":
                                                 collision=False,
                                                 seed=seed)
     
-    ## Load Delan
-    CONTROL_DIR = str(Path(__file__).resolve().parents[0])
-    model_folder = CONTROL_DIR + '/learned_dynamics/models/res_model/'
-    filename = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
+    ## Load Context-Aware DeLaN
+    CADELAC_DIR = Path(__file__).resolve().parents[1]
+    LEARNING_DIR = str(CADELAC_DIR) + "/learning"
+    model_folder = LEARNING_DIR + f"/trained_models/res_model/panda/ContextAware/"
+    
+    # If you want to try your own model, modify both filename and inference_suffix accordingly
+    filename = 'iros2025_epochs_3000_panda_mj_101_rand_envs_20_runs_50Hz_lqr.torch'
     inference_suffix = '_cadelac'
 
     load_file = model_folder + filename
@@ -61,14 +70,15 @@ if __name__ == "__main__":
     torch_model = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
     l4c_delan_inference = L4CContextAwareDeLaN(torch_model, n_dof=n_dof, n_enc_input=n_enc_input, device='cpu')
 
-
-    if use_delan:
+    if ctrl_name == 'CaDeLaC':
         l4c_delan = l4c_delan_inference
         name_suffix = inference_suffix
-    elif kf_filter:
+    elif ctrl_name == 'EKF':
         l4c_delan = 'KF'
+        name_suffix = '_ekf'
     else:
         l4c_delan = None
+        name_suffix = '_nominal'
 
     ## Init MPC
     panda_mpc = PandaMPCSim(
@@ -205,17 +215,33 @@ if __name__ == "__main__":
             results['avg_acados_time_solution_sens_lin'].append(np.mean(panda_mpc.logger.logged_data['time_solution_sens_lin']))
 
 
-    folder_name = 'cadelac/sim_results/'
+    # Print Results
+    runs_rms_q_track_error = np.array(results['rms_q_track_error'])
+    runs_rms_qd_track_error = np.array(results['rms_qd_track_error'])
+
+    runs_rms_q_pred_error = np.array(results['rms_q_pred_error'])
+    runs_rms_qd_pred_error = np.array(results['rms_qd_pred_error'])
+    np.set_printoptions(precision=3)
+    print(f'\n#### Results Controller {ctrl_name} ####')
+    print('## Tracking Error')
+    print(f'RMS q \n{np.mean(runs_rms_q_track_error, axis=0)}')
+    print(f'RMS qd \n{np.mean(runs_rms_qd_track_error, axis=0)}')
+
+    print('\n## Prediction Error')
+    print(f'RMS q \n{np.mean(runs_rms_q_pred_error, axis=0)}')
+    print(f'RMS qd\n{np.mean(runs_rms_qd_pred_error, axis=0)}')
+
+    RESULTS_DIR = CADELAC_DIR / "sim_results"
     results_dict_name = str(n_runs) + '_runs'
-    if use_delan:
+    if ctrl_name == 'CaDeLaC':
         results_dict_name += '_cadelac_' + str(hist_length) + name_suffix
-    elif kf_filter:
+    elif ctrl_name == 'EKF':
         results_dict_name += '_kf_mpc' + name_suffix
     else:
         results_dict_name += '_nominal_mpc' + name_suffix
     results_dict_name += '_n_envs_' + str(n_eval_envs) + '_n_runs_' + str(n_runs)
 
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    with open(folder_name + results_dict_name + '.pkl', 'wb') as fp:
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+    with open(str(RESULTS_DIR) + '/' + results_dict_name + '.pkl', 'wb') as fp:
         pickle.dump(results, fp)

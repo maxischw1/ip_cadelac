@@ -15,7 +15,7 @@ def init_env(args):
 
     # Read the parameters:
     seed, cuda_id, cuda_flag = args.s[0], args.i[0], args.c[0]
-    render, load_model, save_model = bool(args.r[0]), bool(args.l[0]), bool(args.m[0])
+    render, load_model, save_model, full_model = bool(args.r[0]), int(args.l[0]), bool(args.m[0]), bool(args.f[0])
 
     cuda_flag = cuda_flag and torch.cuda.is_available()
 
@@ -29,7 +29,7 @@ def init_env(args):
         assert cuda_id < torch.cuda.device_count()
         torch.cuda.set_device(cuda_id)
 
-    return seed, cuda_flag, render, load_model, save_model
+    return seed, cuda_flag, render, load_model, save_model, full_model
 
 def add_historical_data(hist_length, data,
                         list_key = ['qp', 'qv', 'tau', 'diff_tau_nom']):
@@ -78,7 +78,9 @@ def load_dataset(filename="data/character_data.pickle", test_label=("run_0","run
             data["tau"][run] = data["tau"][run] + np.random.normal(0, np.sqrt(var_tau_read), data["qv"][run].shape)
             data["diff_tau"][run] = data["diff_tau"][run] + np.random.normal(0, np.sqrt(var_diff_tau_nom_pin), data["diff_tau"][run].shape)
 
-        print('Noise added')
+        print("\n################################################")
+        print('Real robot noise added to data.')
+        print("################################################")
 
     if hist_length > 0:
         data, data_hist = add_historical_data(hist_length, data, hist_labels)

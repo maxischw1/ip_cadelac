@@ -87,8 +87,6 @@ class ContextAwareDeLaN(nn.Module):
         super(ContextAwareDeLaN, self).__init__()
 
         self.n_dof = n_dof
-        # self.n_width = kwargs.get("n_width", 32)
-        # self.n_depth = kwargs.get("n_depth", 2)
         self.n_enc_input = kwargs.get("n_enc_input", 1)
         self.n_lstm_hidden = kwargs.get("n_lstm_hidden", 1)
         self.n_lstm_input = kwargs.get("n_lstm_input", 1)
@@ -120,7 +118,8 @@ class ContextAwareDeLaN(nn.Module):
 
         self.inertia_net = ComponentNN(self.n_dof, self.l_output_size, **kwargs_inertia)
         self.potential_net = ComponentNN(self.n_dof, 1, **kwargs_pot)
-        self.lstm = LSTMModel(self.n_lstm_input, self.n_lstm_hidden, self.n_enc_input, self.n_lstm_depth)
+        if self.hist_length > 0:
+            self.lstm = LSTMModel(self.n_lstm_input, self.n_lstm_hidden, self.n_enc_input, self.n_lstm_depth)
 
         # Calculate the indices of the diagonal elements of L:
         idx_diag = np.arange(self.n_dof) + 1
@@ -238,9 +237,9 @@ class ContextAwareDeLaN(nn.Module):
         # Compute the predicted generalized force:
         tau_pred = torch.matmul(d2Ld2qd.squeeze(), qdd_reshaped).squeeze() + torch.matmul(d2L_dqddq.squeeze(), qd_reshaped).squeeze() - dLdq.squeeze()
 
-        dEdt = torch.matmul(tau_pred, torch.zeros(self.n_dof,1).to(tau_pred.device))
+        dEdt = torch.sum(qd * tau_pred, dim=1)
 
-        return tau_pred, dEdt, dEdt, dEdt, dEdt, dEdt, dEdt, dEdt
+        return tau_pred, dEdt
 
     def forward(self, q, qd, qdd, lstm_input = None):
         if self.hist_length == 0:
@@ -249,7 +248,7 @@ class ContextAwareDeLaN(nn.Module):
             enc_input = self.lstm(lstm_input)
             out = self.dyn_model(q, qd, qdd, enc_input)
         tau_pred = out[0]
-        dEdt = out[6] + out[7]
+        dEdt = out[1]
         return tau_pred, dEdt
 
     def inv_dyn(self, q, qd, qdd, lstm_input = None):

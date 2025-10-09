@@ -128,7 +128,7 @@ The datasets used in this project is hosted on [Hugging Face Datasets](https://h
 
 To download it directly into the repository, run:
 ```
-git clone https://huggingface.co/datasets/schulze18/cadelac learning/data/datasets/panda
+git clone https://huggingface.co/datasets/schulze18/cadelac cadelac/learning/datasets/
 ```
 
 This dataset was originally generated with the script `sim/create_dataset.py`.  
