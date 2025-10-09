@@ -21,7 +21,7 @@ from cadelac.learning.models.DeLaN_model import DeepLagrangianNetwork
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
 
 from cadelac.learning.data_scripts.replay_memory import PyTorchReplayMemory
-from cadelac.learning.data_scripts.utils import init_env, load_dataset
+from cadelac.learning.data_scripts.utils import init_env, load_dataset, plot_torques
 from pathlib import Path
 
 
@@ -52,11 +52,11 @@ if __name__ == "__main__":
     n_dof = 7
     full_model = False
     flag_normalize_tau = True
-    sample_offset = 0
-    save_checkpoint_model = False
-    log_period = 5
+    sample_offset = 1
+    save_checkpoint_model = True
+    log_period = 50
 
-    add_noise_to_load_data = False
+    add_noise_to_load_data = True
 
     LEARNING_DIR = Path(__file__).resolve().parents[0]
     DATA_DIR = LEARNING_DIR / "data"
@@ -64,18 +64,32 @@ if __name__ == "__main__":
 
     ## LSTM parameters
     hist_length = 15 if (nn_id == "ContextAware" and not full_model) else 0
-    hist_labels = ['qp', 'qv', 'tau', 'diff_tau_nom_pin']
+    hist_labels = ['qp', 'qv', 'tau', 'diff_tau']
     n_lstm_input = n_dof * 3
     n_lstm_hidden = 10
     n_lstm_output = 10
     n_lstm_depth = 5
 
-    if hist_length > 0:
-        filename = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
-        filename_short = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
+    if full_model == False:
+        # filename = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
+        # filename = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
+        # filename_short = 'panda_mj_101_rand_envs_50Hz_lqr_kf'
+
+        # filename = 'rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
+        # filename_short = 'rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
+
+        # filename = 'v3_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
+        # filename_short = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
+        
+        filename = 'relabel_v3_rand_envs_101_box_pos_rand_1_box_mass_rand_nominal_1_kf_comp_0_samples_1040300_sim_time_10_dataset_lqr_freq_015'
+        filename_short = 'v3_panda_mj_101_rand_envs_50Hz_lqr_kf'
+
     else:
-        filename = 'panda_mj_no_payload_50Hz_lqr_kf'
-        filename_short = 'panda_mj_no_payload_50Hz_lqr_kf'
+        # filename = 'panda_mj_no_payload_50Hz_lqr_kf'
+        # filename_short = 'panda_mj_no_payload_50Hz_lqr_kf'
+
+        filename = 'v3_panda_mj_no_payload_50Hz_lqr_kf'
+        filename_short = 'v3_panda_mj_no_payload_50Hz_lqr_kf'
 
     if full_model:
         test_label = ['env_0_run_1','env_0_run_2']
@@ -100,16 +114,15 @@ if __name__ == "__main__":
                                                         add_noise=add_noise_to_load_data)
 
     if hist_length == 0:
-        train_labels, train_qp, train_qv, train_qa, train_p, train_pd, train_tau, train_one_hot = train_data
-        test_labels, test_qp, test_qv, test_qa, test_p, test_pd, test_tau, test_m, test_c, test_g, test_one_hot = test_data
-        # n_enc_input = train_one_hot.shape[-1]
+        train_labels, train_qp, train_qv, train_qa, train_tau = train_data
+        test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g = test_data
         n_enc_input = 1
-        train_lstm_input = np.ones_like(train_one_hot)
-        test_lstm_input = np.ones_like(test_one_hot)
+        train_lstm_input = np.ones_like(train_qp)
+        test_lstm_input = np.ones_like(test_qp)
     else:
-        train_labels, train_qp, train_qv, train_qa, train_p, train_pd, train_tau, train_one_hot, \
+        train_labels, train_qp, train_qv, train_qa, train_tau, \
                      tain_hist_qp, tain_hist_qv, tain_hist_tau, tain_hist_diff_tau_nom = train_data
-        test_labels, test_qp, test_qv, test_qa, test_p, test_pd, test_tau, test_m, test_c, test_g, test_one_hot, \
+        test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g, \
                      test_hist_qp, test_hist_qv, test_hist_tau, test_hist_diff_tau_nom = test_data
         
         train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_diff_tau_nom), axis=-1)
@@ -118,15 +131,18 @@ if __name__ == "__main__":
 
 
     print("\n\n################################################")
-    print("Characters:")
-    print("   Test Characters = {0}".format(test_labels))
-    print("  Train Characters = {0}".format(train_labels))
+    print("Runs:")
+    print("   Test Runs = {0}".format(test_labels))
+    print("  Train Runs = {0}".format(train_labels))
     print("# Training Samples = {0:05d}".format(int(train_qp.shape[0])))
     print("")
 
     # Training Parameters:
     print("\n################################################")
-    print("Training Deep Lagrangian Networks (DeLaN):")
+    if full_model and not load_model:
+        print("Training Deep Lagrangian Networks (DeLaN):")
+    elif not load_model:
+        print("Training Contextual DeLaN:")
 
     # Construct Hyperparameters:
     hyper = {
@@ -149,7 +165,7 @@ if __name__ == "__main__":
              'n_lstm_depth': n_lstm_depth,
              'hist_length': hist_length,
              'act_ld': 'Softplus',
-             'max_epoch': 10
+             'max_epoch': 1500
             }
 
     model_name = 'epochs_' + str(hyper['max_epoch'])
@@ -168,10 +184,14 @@ if __name__ == "__main__":
         model_name = nn_id + '_' + model_name
 
 
+    # model_name = 'hist_15_lstm_in_21_h_10_out_10_d_5_act_ld_Softplus_epochs_1500_nw_inertia_30_20_nw_pot_30_20_pin_noise__mb_1024_norm_tau_1_v3_panda_mj_101_rand_envs_50Hz_lqr_kf.torch'
+    model_name = 'epochs_3000_nw_inertia_30_20_nw_pot_30_20_pin_noise_rand_envs_nom_101_kf_0_samples_1040300.torch'
+
     # Load existing model parameters:
     if load_model:
         load_file = DATA_DIR + f"/trained_models/{model_type_folder}/{model_name}"
-        state = torch.load(load_file)
+        # state = torch.load(load_file)#, weights_only=False)
+        state = torch.load(load_file, map_location=torch.device('cpu'), weights_only=False)
 
         delan_model = nn_type(n_dof, **state['hyper'])
         delan_model.load_state_dict(state['state_dict'])
@@ -233,10 +253,13 @@ if __name__ == "__main__":
         if save_checkpoint_model:
             if epoch_i > 0 and (epoch_i % 500) == 0:
                 print(f'Saving checkpoint model epoch: {epoch_i}')
+                CHECKPOINT_DIR = DATA_DIR + f"/trained_models/{model_type_folder}/checkpoint/"
+                if not os.path.exists(CHECKPOINT_DIR):
+                    os.makedirs(CHECKPOINT_DIR)
                 torch.save({"epoch": epoch_i,
                             "hyper": hyper,
                             "state_dict": delan_model.state_dict()},
-                            DATA_DIR + f"/trained_models/{model_type_folder}/checkpoint/{model_name}_{epoch_i}") 
+                            CHECKPOINT_DIR + f"/{epoch_i}_{model_name}") 
 
         for q, qd, qdd, tau, lstm_input in mem:
             t0_batch = time.perf_counter()
@@ -344,7 +367,6 @@ if __name__ == "__main__":
     err_g = 1. / float(test_qp.shape[0]) * np.sum((delan_g - test_g) ** 2 / norm_tau_np)
     err_m = 1. / float(test_qp.shape[0]) * np.sum((delan_m - test_m) ** 2 / norm_tau_np)
     err_c = 1. / float(test_qp.shape[0]) * np.sum((delan_c - test_c) ** 2 / norm_tau_np)
-    err_cg = 1. / float(test_qp.shape[0]) * np.sum((delan_c + delan_g - test_c - test_g) ** 2 / norm_tau_np)
     err_tau = 1. / float(test_qp.shape[0]) * np.sum((delan_tau - test_tau) ** 2 / norm_tau_np)
     err_dEdt = 1. / float(test_qp.shape[0]) * np.sum((delan_dEdt - test_dEdt) ** 2 / norm_tau_np)
 
@@ -353,194 +375,8 @@ if __name__ == "__main__":
     print("              Inertial MSE = {0:.3e}".format(err_m))
     print("Coriolis & Centrifugal MSE = {0:.3e}".format(err_c))
     print("         Gravitational MSE = {0:.3e}".format(err_g))
-    print("      Cor & Cen & Grav MSE = {0:.3e}".format(err_cg))
     print("    Power Conservation MSE = {0:.3e}".format(err_dEdt))
     print("      Comp Time per Sample = {0:.3e}s / {1:.1f}Hz".format(t_batch, 1./t_batch))
 
-    print("\n################################################")
-    print("Plotting Performance:")
-
-    # Alpha of the graphs:
-    plot_alpha = 0.8
-
-    # Plot the performance:
-    y_t_low = np.clip(1.2 * np.min(np.vstack((test_tau, delan_tau)), axis=0), -np.inf, -0.01)
-    y_t_max = np.clip(1.5 * np.max(np.vstack((test_tau, delan_tau)), axis=0), 0.01, np.inf)
-
-    y_m_low = np.clip(1.2 * np.min(np.vstack((test_m, delan_m)), axis=0), -np.inf, -0.01)
-    y_m_max = np.clip(1.2 * np.max(np.vstack((test_m, delan_m)), axis=0), 0.01, np.inf)
-
-    y_c_low = np.clip(1.2 * np.min(np.vstack((test_c, delan_c)), axis=0), -np.inf, -0.01)
-    y_c_max = np.clip(1.2 * np.max(np.vstack((test_c, delan_c)), axis=0), 0.01, np.inf)
-
-    y_g_low = np.clip(1.2 * np.min(np.vstack((test_g, delan_g)), axis=0), -np.inf, -0.01)
-    y_g_max = np.clip(1.2 * np.max(np.vstack((test_g, delan_g)), axis=0), 0.01, np.inf)
-    if n_dof % 2 == 1:
-        y_t_low = np.concatenate((y_t_low, -10*np.ones(1)))
-        y_t_max = np.concatenate((y_t_max, 10*np.ones(1)))
-        y_m_low = np.concatenate((y_m_low, -10*np.ones(1)))
-        y_m_max = np.concatenate((y_m_max, 10*np.ones(1)))
-        y_c_low = np.concatenate((y_c_low, -10*np.ones(1)))
-        y_c_max = np.concatenate((y_c_max, 10*np.ones(1)))
-        y_g_low = np.concatenate((y_g_low, -10*np.ones(1)))
-        y_g_max = np.concatenate((y_g_max, 10*np.ones(1)))
-
-    plt.rc('text', usetex=True)
-    color_i = ["r", "b", "g", "k"]
-
-    ticks = np.array(divider)
-    ticks = (ticks[:-1] + ticks[1:]) / 2
-
-    for i in range(0, n_dof, 2):
-
-        fig = plt.figure(figsize=(24.0/1.54, 8.0/1.54), dpi=100)
-        fig.subplots_adjust(left=0.08, bottom=0.12, right=0.98, top=0.95, wspace=0.3, hspace=0.2)
-        # fig.canvas.manage.set_window_title('Seed = {0}'.format(seed))
-
-        legend = [mp.patches.Patch(color=color_i[0], label="DeLaN"),
-                mp.patches.Patch(color="k", label="Ground Truth")]
-
-        # Plot Torque
-        ax0 = fig.add_subplot(2, 4, 1)
-        # ax0.set_title(r"$\boldsymbol{\tau}$")
-        ax0.set_title('Torque')
-        ax0.text(s=f'Joint {i}', x=-0.35, y=.5, fontsize=12, fontweight="bold", rotation=90, horizontalalignment="center", verticalalignment="center", transform=ax0.transAxes)
-        ax0.set_ylabel("Torque [Nm]")
-        ax0.get_yaxis().set_label_coords(-0.2, 0.5)
-        ax0.set_ylim(y_t_low[i+0], y_t_max[i+0])
-        ax0.set_xticks(ticks)
-        ax0.set_xticklabels(test_labels)
-        ax0.vlines(divider, y_t_low[i+0], y_t_max[i+0], linestyles='--', lw=0.5, alpha=1.)
-        ax0.set_xlim(divider[0], divider[-1])
-
-        ax1 = fig.add_subplot(2, 4, 5)
-        ax1.text(s=f'Joint {i+1}', x=-.35, y=0.5, fontsize=12, fontweight="bold", rotation=90,
-                horizontalalignment="center", verticalalignment="center", transform=ax1.transAxes)
-
-        ax1.text(s=r"\textbf{(a)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
-                verticalalignment="center", transform=ax1.transAxes)
-
-        ax1.set_ylabel("Torque [Nm]")
-        ax1.get_yaxis().set_label_coords(-0.2, 0.5)
-        ax1.set_ylim(y_t_low[i+1], y_t_max[1])
-        ax1.set_xticks(ticks)
-        ax1.set_xticklabels(test_labels)
-        ax1.vlines(divider, y_t_low[i+1], y_t_max[1], linestyles='--', lw=0.5, alpha=1.)
-        ax1.set_xlim(divider[0], divider[-1])
-
-        ax0.legend(handles=legend, bbox_to_anchor=(0.0, 1.0), loc='upper left', ncol=1, framealpha=1.)
-
-        # Plot Ground Truth Torque:
-        ax0.plot(test_tau[:, i+0], color="k")
-        if i+1 < n_dof:
-            ax1.plot(test_tau[:, i+1], color="k")
-
-        # Plot DeLaN Torque:
-        ax0.plot(delan_tau[:, i+0], color=color_i[0], alpha=plot_alpha)
-        if i+1 < n_dof:
-            ax1.plot(delan_tau[:, i+1], color=color_i[0], alpha=plot_alpha)
-
-        # Plot Mass Torque
-        ax0 = fig.add_subplot(2, 4, 2)
-        ax0.set_title(r"$\displaystyle\mathbf{H}(\mathbf{q}) \ddot{\mathbf{q}}$")
-        ax0.set_ylabel("Torque [Nm]")
-        ax0.set_ylim(y_m_low[i+0], y_m_max[i+0])
-        ax0.set_xticks(ticks)
-        ax0.set_xticklabels(test_labels)
-        ax0.vlines(divider, y_m_low[i+0], y_m_max[i+0], linestyles='--', lw=0.5, alpha=1.)
-        ax0.set_xlim(divider[0], divider[-1])
-
-        ax1 = fig.add_subplot(2, 4, 6)
-        ax1.text(s=r"\textbf{(b)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
-                verticalalignment="center", transform=ax1.transAxes)
-
-        ax1.set_ylabel("Torque [Nm]")
-        ax1.set_ylim(y_m_low[i+1], y_m_max[i+1])
-        ax1.set_xticks(ticks)
-        ax1.set_xticklabels(test_labels)
-        ax1.vlines(divider, y_m_low[i+1], y_m_max[i+1], linestyles='--', lw=0.5, alpha=1.)
-        ax1.set_xlim(divider[0], divider[-1])
-
-        # Plot Ground Truth Inertial Torque:
-        ax0.plot(test_m[:, i+0], color="k")
-        if i+1 < n_dof:
-            ax1.plot(test_m[:, i+1], color="k")
-
-        # Plot DeLaN Inertial Torque:
-        ax0.plot(delan_m[:, i+0], color=color_i[0], alpha=plot_alpha)
-        if i+1 < n_dof:
-            ax1.plot(delan_m[:, i+1], color=color_i[0], alpha=plot_alpha)
-
-        # Plot Coriolis Torque
-        ax0 = fig.add_subplot(2, 4, 3)
-        ax0.set_title(r"$\displaystyle\mathbf{c}(\mathbf{q}, \dot{\mathbf{q}}) + \displaystyle\mathbf{g}(\mathbf{q})$")
-        ax0.set_ylabel("Torque [Nm]")
-        ax0.set_ylim(y_c_low[i+0], y_c_max[i+0])
-        ax0.set_xticks(ticks)
-        ax0.set_xticklabels(test_labels)
-        ax0.vlines(divider, y_c_low[i+0], y_c_max[i+0], linestyles='--', lw=0.5, alpha=1.)
-        ax0.set_xlim(divider[0], divider[-1])
-
-        ax1 = fig.add_subplot(2, 4, 7)
-        ax1.text(s=r"\textbf{(c)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
-                verticalalignment="center", transform=ax1.transAxes)
-
-        ax1.set_ylabel("Torque [Nm]")
-        ax1.set_ylim(y_c_low[i+1], y_c_max[i+1])
-        ax1.set_xticks(ticks)
-        ax1.set_xticklabels(test_labels)
-        ax1.vlines(divider, y_c_low[i+1], y_c_max[i+1], linestyles='--', lw=0.5, alpha=1.)
-        ax1.set_xlim(divider[0], divider[-1])
-
-        # Plot Ground Truth Coriolis & Centrifugal Torque:
-        ax0.plot(test_c[:, i+0] + 0*test_g[:, i+0], color="k")
-        if i+1 < n_dof:
-            ax1.plot(test_c[:, i+1] + 0*test_g[:, i+1], color="k")
-
-        # Plot DeLaN Coriolis & Centrifugal Torque:
-        ax0.plot(delan_c[:, i+0] + delan_g[:, i+0], color=color_i[0], alpha=plot_alpha)
-        if i+1 < n_dof:
-            ax1.plot(delan_c[:, i+1] + delan_g[:, i+1], color=color_i[0], alpha=plot_alpha)
-
-        # Plot Gravity
-        ax0 = fig.add_subplot(2, 4, 4)
-        ax0.set_title(r"$\displaystyle\mathbf{g}(\mathbf{q})$")
-        ax0.set_ylabel("Torque [Nm]")
-        ax0.set_ylim(y_g_low[i+0], y_g_max[i+0])
-        ax0.set_xticks(ticks)
-        ax0.set_xticklabels(test_labels)
-        ax0.vlines(divider, y_g_low[i+0], y_g_max[i+0], linestyles='--', lw=0.5, alpha=1.)
-        ax0.set_xlim(divider[0], divider[-1])
-
-        ax1 = fig.add_subplot(2, 4, 8)
-        ax1.text(s=r"\textbf{(d)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
-                verticalalignment="center", transform=ax1.transAxes)
-
-        ax1.set_ylabel("Torque [Nm]")
-        ax1.set_ylim(y_g_low[i+1], y_g_max[i+1])
-        ax1.set_xticks(ticks)
-        ax1.set_xticklabels(test_labels)
-        ax1.vlines(divider, y_g_low[i+1], y_g_max[i+1], linestyles='--', lw=0.5, alpha=1.)
-        ax1.set_xlim(divider[0], divider[-1])
-
-        # Plot Ground Truth Gravity Torque:
-        ax0.plot(-1.0*test_g[:, i+0], color="k")
-        if i+1 < n_dof:
-            ax1.plot(-1.0*test_g[:, i+1], color="k")
-
-        # Plot DeLaN Gravity Torque:
-        ax0.plot(delan_g[:, i+0], color=color_i[0], alpha=plot_alpha)
-        if i+1 < n_dof:
-            ax1.plot(delan_g[:, i+1], color=color_i[0], alpha=plot_alpha)
-
-        fig_dir = str(LEARNING_DIR) + f"/figures/mpc_DeLaN_Performance/{model_type_folder}/{model_name}"
-        if not os.path.isdir(fig_dir):
-            os.makedirs(fig_dir)
-        fig.savefig(f"{fig_dir}/joints_{i}_{i+1}.pdf", format="pdf")
-        fig.savefig(f"{fig_dir}/joints_{i}_{i+1}.png", format="png")
-
-    if render:
-        plt.show()
-
-    print("\n################################################\n\n\n")
-
+    fig_dir = str(LEARNING_DIR) + f"/figures/mpc_DeLaN_Performance/{model_type_folder}/{model_name}"
+    plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, delan_g, test_labels, divider, fig_dir, render)
