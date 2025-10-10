@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import time
 import copy
 import torch
@@ -31,21 +32,28 @@ from cadelac.control.l4c_context_aware_delan import L4CContextAwareDeLaN
 from pathlib import Path
 
 class CaDeLaCNode:
-    def __init__(self):
+    def __init__(self, ctrl_index):
+
+        self.ctrl_list = ['Nominal', 'EKF', 'CaDeLaC']
+        self.ctrl_name = self.ctrl_list[ctrl_index]
+
         self.pos_safe_init = np.array([0, -0.4, 0, -2.4, 0, 2.2, -0.7853])
         self.control_period = 0.02
         rospy.loginfo("Initialize CaDeLaC")
         self.control_mode = 'MPC'
         # self.control_mode = 'LQR'
         
-        #### Change this options to select different experiments or mpc mode ######
+        #### Change this options to select different experiments ######
         # self.ref_type = 'sin'
         self.ref_type = 'FULL_INF'
         # self.ref_type = 'PICK_AND_PLACE'
 
-        self.mpc_mode = 'nominal'
-        # controller = 'kf'
-        # controller = 'cadelac'
+        if self.ctrl_name == 'CaDeLaC':
+            self.mpc_mode = 'cadelac'
+        elif self.ctrl_name == 'EKF':
+            self.mpc_mode = 'kf'
+        else:
+            self.mpc_mode = 'nominal'
 
         # On the first run, compiling the Acados controller can take several minutes,
         # which may start the experiment before the operator is ready.
@@ -972,8 +980,14 @@ class CaDeLaCNode:
         self.mpc_debug_pub.publish(debug_msg)
         
 if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", type=int, default=0, help="Controller option.")
+    args = parser.parse_args()
+    ctrl_index = int(args.c)
+
     rospy.init_node('mpc_node')
-    node = CaDeLaCNode()
+    node = CaDeLaCNode(ctrl_index=ctrl_index)
     try:
         rospy.spin()
     except rospy.ROSInterruptException:
