@@ -15,6 +15,8 @@ If you find this work useful, please consider citing:
 }
 ```
 
+For experiments videos, check the [project website](https://schulze18.github.io/cadelac_website/).
+
 # Installation - Training and Simulation
 
 ### Training and Simulation Setup
@@ -74,7 +76,7 @@ If you find this work useful, please consider citing:
 2. Set Up Conda with ROS
    ```bash
    conda env create -f cadelac_ros_env.yml
-   conda activate cadelac
+   conda activate cadelac_ros
    ```
 
    To ensure **Acados** and **Libfranka** use the same compiler, add the installed compiler (`gcc-12`) to your `PATH` (recommended in `.bashrc`):
@@ -109,7 +111,7 @@ If you find this work useful, please consider citing:
 6. **Build the ROS workspace**
    ```bash
    cd ~/catkin_ws
-   catkin_make -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH={PATH_TO_LIBFRANKA}/libfranka/build -j2
+   catkin_make -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH={PATH_TO_LIBFRANKA}/libfranka/build -j2
    source devel/setup.bash
    ```
 
@@ -183,3 +185,8 @@ python -m cadelac.ros.cadelac_node -c 2
 
 > **Note:**  
 As Acados needs to compile the controller in the first run, which will take several minutes for CaDeLaC, the safety flag [compilation_run](https://github.com/Schulze18/cadelac/blob/main/cadelac/ros/cadelac_node.py#L63) prevents the controller to be executed and holds the robot in place. Once the compilation is done, you can stop the script, set the flag to `False` and run again the script which will load the compiled controller. If you run a new controller for the first time, set the flag to `True` again.
+
+---
+## TODO
+- [ ] Additional implementation details
+- [ ] Dataset collection scripts

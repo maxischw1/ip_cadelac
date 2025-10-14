@@ -203,7 +203,6 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
         y_g_low = np.concatenate((y_g_low, -10*np.ones(1)))
         y_g_max = np.concatenate((y_g_max, 10*np.ones(1)))
 
-    plt.rc('text', usetex=True)
     color_i = ["r", "b", "g", "k"]
 
     ticks = np.array(divider)
@@ -233,7 +232,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
         ax1.text(s=f'Joint {i+1}', x=-.35, y=0.5, fontsize=12, fontweight="bold", rotation=90,
                 horizontalalignment="center", verticalalignment="center", transform=ax1.transAxes)
 
-        ax1.text(s=r"\textbf{(a)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
+        ax1.text(s=r"$\mathbf{(a)}$", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
                 verticalalignment="center", transform=ax1.transAxes)
 
         ax1.set_ylabel("Torque [Nm]")
@@ -258,7 +257,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
 
         # Plot Mass Torque
         ax0 = fig.add_subplot(2, 4, 2)
-        ax0.set_title(r"$\displaystyle\mathbf{H}(\mathbf{q}) \ddot{\mathbf{q}}$")
+        ax0.set_title(r"$\mathbf{H}(\mathbf{q}) \ddot{\mathbf{q}}$")
         ax0.set_ylabel("Torque [Nm]")
         ax0.set_ylim(y_m_low[i+0], y_m_max[i+0])
         ax0.set_xticks(ticks)
@@ -267,7 +266,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
         ax0.set_xlim(divider[0], divider[-1])
 
         ax1 = fig.add_subplot(2, 4, 6)
-        ax1.text(s=r"\textbf{(b)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
+        ax1.text(s=r"$\mathbf{(b)}$", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
                 verticalalignment="center", transform=ax1.transAxes)
 
         ax1.set_ylabel("Torque [Nm]")
@@ -289,7 +288,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
 
         # Plot Coriolis Torque
         ax0 = fig.add_subplot(2, 4, 3)
-        ax0.set_title(r"$\displaystyle\mathbf{c}(\mathbf{q}, \dot{\mathbf{q}})$")
+        ax0.set_title(r"$\mathbf{c}(\mathbf{q}, \dot{\mathbf{q}})$")
         ax0.set_ylabel("Torque [Nm]")
         ax0.set_ylim(y_c_low[i+0], y_c_max[i+0])
         ax0.set_xticks(ticks)
@@ -298,7 +297,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
         ax0.set_xlim(divider[0], divider[-1])
 
         ax1 = fig.add_subplot(2, 4, 7)
-        ax1.text(s=r"\textbf{(c)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
+        ax1.text(s=r"$\mathbf{(c)}$", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
                 verticalalignment="center", transform=ax1.transAxes)
 
         ax1.set_ylabel("Torque [Nm]")
@@ -320,7 +319,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
 
         # Plot Gravity
         ax0 = fig.add_subplot(2, 4, 4)
-        ax0.set_title(r"$\displaystyle\mathbf{g}(\mathbf{q})$")
+        ax0.set_title(r"$\mathbf{g}(\mathbf{q})$")
         ax0.set_ylabel("Torque [Nm]")
         ax0.set_ylim(y_g_low[i+0], y_g_max[i+0])
         ax0.set_xticks(ticks)
@@ -329,7 +328,7 @@ def plot_torques(test_tau, test_m, test_c, test_g, delan_tau, delan_m, delan_c, 
         ax0.set_xlim(divider[0], divider[-1])
 
         ax1 = fig.add_subplot(2, 4, 8)
-        ax1.text(s=r"\textbf{(d)}", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
+        ax1.text(s=r"$\mathbf{(d)}$", x=.5, y=-0.25, fontsize=12, fontweight="bold", horizontalalignment="center",
                 verticalalignment="center", transform=ax1.transAxes)
 
         ax1.set_ylabel("Torque [Nm]")

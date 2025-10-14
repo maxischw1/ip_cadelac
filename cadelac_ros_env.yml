@@ -28,6 +28,9 @@ dependencies:
 - ros-noetic-tf-conversions
 - ros-noetic-eigen-conversions
 - ros-noetic-xacro
+- ros-noetic-ros-controllers
+- ros-noetic-robot-state-publisher
+- ros-noetic-joint-state-publisher
 - pip:
   - mujoco==3.2.4
   - dm_control==1.0.24
@@ -38,3 +41,4 @@ dependencies:
   - cmake==3.27
   - ninja>=1.11
   - dill
+  - PyQt5

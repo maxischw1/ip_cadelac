@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import argparse
 import time
 import copy
@@ -171,7 +172,7 @@ class CaDeLaCNode:
     def open_gripper(self):
         self.gripper_client.wait_for_server()
         gripper_goal = GripperCommandGoal()
-        gripper_goal.command.position = 0.025
+        gripper_goal.command.position = 0.035
         gripper_goal.command.max_effort = 0.0
         self.gripper_client.send_goal(gripper_goal)
         self.gripper_client.wait_for_result()
@@ -349,7 +350,7 @@ class CaDeLaCNode:
                     for key in logger_final.logged_data.keys():
                         dataset[key] = []
                         dataset[key].append(logger_final.logged_data[key])
-                    folder_name = 'datasets_real/2025_03_05/'
+                    folder_name = 'real_results/'
                     n_samples = dataset['t'][-1].shape[0]
 
                     if self.delan_model is None:
@@ -357,8 +358,7 @@ class CaDeLaCNode:
                     elif self.delan_model == 'KF':
                         model_str = 'kf_' + str(self.kf_state_Fee.nFee) + '_'
                     else:
-                        model_str = 'delan_v4_'
-                    model_str = model_str + '1kg_'
+                        model_str = 'cadelac_'
 
                     if self.ref_type == 'FULL_INF':
                         model_str = model_str + '_full_inf_theta_0_'
@@ -367,12 +367,13 @@ class CaDeLaCNode:
                     else:
                         model_str = model_str + 'q12_ref_'
 
-                    model_str = model_str
-                    filename = model_str + 'samples_' + str(n_samples) + '_dataset_mpc.pkl'
-                    with open(folder_name + filename, 'wb') as fp:
-                        pickle.dump(dataset, fp)
-                        print(f'dictionary saved successfully to file {filename} | Nsamples {n_samples}')
-                    print(f'diff time {time.time() - init_time}')
+                    # TODO: Solve random freeze when saving the results
+                    # model_str = model_str
+                    # filename = model_str + 'samples_' + str(n_samples) + '_dataset_mpc.pkl'
+                    # with open(folder_name + filename, 'wb') as fp:
+                    #     pickle.dump(dataset, fp)
+                    #     print(f'dictionary saved successfully to file {filename} | Nsamples {n_samples}')
+                    # print(f'diff time {time.time() - init_time}')
 
             else:
                 q_ref = self.q_ref_traj[:, time_index:]

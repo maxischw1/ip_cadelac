@@ -6,15 +6,6 @@ import os
 
 import matplotlib as mp
 
-if os.getenv("DISPLAY"):
-    try:
-        mp.use("Qt5Agg")
-        mp.rc('text', usetex=True)
-        mp.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
-
-    except ImportError:
-        pass
-
 
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
 from cadelac.learning.data_scripts.replay_memory import PyTorchReplayMemory
@@ -210,7 +201,7 @@ if __name__ == "__main__":
         t0_epoch = time.perf_counter()
 
         if save_checkpoint_model:
-            if epoch_i > 0 and (epoch_i % 2) == 0:
+            if epoch_i > 0 and (epoch_i % 500) == 0:
                 print(f'Saving checkpoint model epoch: {epoch_i}')
                 CHECKPOINT_DIR = LEARNING_DIR + f"/trained_models/{model_type_folder}/checkpoint/"
                 if not os.path.exists(CHECKPOINT_DIR):
