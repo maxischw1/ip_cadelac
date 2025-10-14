@@ -137,6 +137,8 @@ python -m cadelac.learning.train_panda -l 2
 ```bash
 python -m cadelac.learning.train_panda -l 0
 ```
+> **Note:**  
+Due to the dataset size, data loading may take a few minutes. During training, each epoch took around 30s on an NVIDIA GeForce RTX 4080. In the paper, we trained for 3000 epochs, but 1000 epochs already achieve similar performance.
 
 ### Evaluate Trained Model
 ```bash
@@ -175,11 +177,16 @@ Controller options:
 
 **Terminal 1:** Launch hardware interface
 ```bash
+conda activate cadelac_ros
+source catkin_ws/devel/setup.bas
 roslaunch franka_example_controllers effort_joint_controller.launch robot_ip:={ROBOT_IP} load_gripper:=true robot:=panda
 ```
 
 **Terminal 2:** Run CaDeLaC controller
 ```bash
+conda activate cadelac_ros
+source catkin_ws/devel/setup.bash 
+cd catkin_ws/src/cadelac/
 python -m cadelac.ros.cadelac_node -c 2
 ```
 
