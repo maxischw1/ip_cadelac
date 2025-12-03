@@ -4,18 +4,20 @@ Source code for **Context-Aware Deep Lagrangian Networks for Model Predictive Co
 
 If you find this work useful, please consider citing:
 ```
-@misc{schulze2025_cadelac,
-      title={Context-Aware Deep Lagrangian Networks for Model Predictive Control}, 
-      author={Lucas Schulze and Jan Peters and Oleg Arenz},
-      year={2025},
-      eprint={2506.15249},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO},
-      url={https://arxiv.org/abs/2506.15249}, 
+@inproceedings{schulze2025contextawaredelan,
+  author={Schulze, Lucas and Peters, Jan and Arenz, Oleg},
+  booktitle={2025 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 
+  title={Context-Aware Deep Lagrangian Networks for Model Predictive Control}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={6939-6946},
+  keywords={},
+  doi={10.1109/IROS60139.2025.11246292}
 }
 ```
 
-For experiments videos, check the [project website](https://schulze18.github.io/cadelac_website/).
+For experiment videos, check the [project website](https://schulze18.github.io/cadelac_website/).
 
 # Installation - Training and Simulation
 
