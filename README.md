@@ -199,3 +199,66 @@ As Acados needs to compile the controller in the first run, which will take seve
 ## TODO
 - [ ] Additional implementation details
 - [ ] Dataset collection scripts
+
+## 2-DOF Exoskeleton Training Configuration
+
+The training script was adapted for the 2-DOF hip-knee exoskeleton setup.
+
+Main configuration changes:
+
+- `n_dof = 2`
+- `add_noise_to_load_data = False`
+- Context-Aware training uses `exo_hip_knee_delan_2dof_left_all_trials_context`
+- Full DeLaN training uses `exo_hip_knee_delan_2dof_left_all_trials`
+
+Artificial training noise is disabled because the exoskeleton dataset already comes from real measured motion data.
+
+### Subject-Wise Train/Test Split
+
+The exoskeleton setup uses a subject-wise split:
+
+- BT23 segments are used for training.
+- BT24 segments are used for testing.
+
+The test labels are selected automatically from the dataset labels by searching for `BT24`.
+
+
+### Context-Aware LSTM Input
+
+For the simplified exoskeleton setup, the Context-Aware LSTM input uses the measured torque history directly.
+
+The LSTM input is built from:
+
+- joint positions `q`
+- joint velocities `qdot`
+- measured torque history `tau`
+
+This replaces the previous nominal residual torque history input. Since the simplified dataset sets `diff_tau = tau`, no nominal DeLaN torque prediction is required before Context-Aware training.
+
+
+### Training Commands
+
+Run Context-Aware exoskeleton training with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 0 -f 0 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_context_hist15.log
+```
+
+Run full DeLaN exoskeleton training with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 0 -f 1 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_full_delan.log
+```
+
+Evaluate a saved Context-Aware model with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 1 -f 0 -m 0 -r 0 -c 0
+```
+
+Evaluate a saved full DeLaN model with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 1 -f 1 -m 0 -r 0 -c 0
+```
+

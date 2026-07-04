@@ -1,4 +1,5 @@
 import argparse
+import dill as pickle
 import torch
 import numpy as np
 import time
@@ -36,13 +37,13 @@ if __name__ == "__main__":
     minibatch = 1024
     loss_power = False
 
-    n_dof = 7
+    n_dof = 2
     flag_normalize_tau = True
     sample_offset = 1
     save_checkpoint_model = True
     log_period = 50
 
-    add_noise_to_load_data = True
+    add_noise_to_load_data = False
 
     LEARNING_DIR = str(Path(__file__).resolve().parents[0])
 
@@ -55,20 +56,22 @@ if __name__ == "__main__":
     n_lstm_depth = 5
 
     if full_model == False:
-        dataset_name = 'panda_mj_101_rand_envs_20_runs_50Hz_lqr'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials_context'
     else:
-        dataset_name = 'panda_mj_nominal_env_20_runs_50Hz_lqr'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials'
+
+    dataset_path = LEARNING_DIR + '/datasets/panda/' + dataset_name + '.pkl'
+
+    with open(dataset_path, "rb") as f:
+        _data_tmp = pickle.load(f)
+
+    test_label = [label for label in _data_tmp["labels"] if "BT24" in label]
+    print("Subject-wise test labels:", test_label)
 
     if full_model:
-        test_label = []
         model_type_folder = 'full_model/panda/' + nn_id
     else:
-        if hist_length > 0:
-           test_label = []
-        else:
-            test_label = ['env_0_run_1','env_0_run_2']
         model_type_folder = 'res_model/panda/' + nn_id
-    dataset_path = LEARNING_DIR + '/datasets/panda/' + dataset_name + '.pkl'
 
     train_data, test_data, divider, dt_mean = load_dataset(filename=dataset_path, test_label=test_label,
                                                         full_model=full_model, sample_offset=sample_offset,
@@ -89,8 +92,8 @@ if __name__ == "__main__":
         test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g, \
                      test_hist_qp, test_hist_qv, test_hist_tau, test_hist_diff_tau_nom = test_data
         
-        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_diff_tau_nom), axis=-1)
-        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_diff_tau_nom), axis=-1)
+        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_tau), axis=-1)
+        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_tau), axis=-1)
         n_enc_input = n_lstm_output
 
 
