@@ -330,3 +330,17 @@ This fork adds support for converting processed hip-knee exoskeleton data into t
 
 - `fix_exo_pkl_time.py`: Fixes or normalizes timing information inside an already generated exoskeleton `.pkl` dataset.
 
+
+### Context-Aware Dataset Variant
+
+`make_all_exo_pkls.py` also creates a Context-Aware dataset variant with the suffix `_context.pkl`.
+
+For this simplified setup, the measured torque is used directly as the residual target:
+
+```text
+diff_tau = tau
+```
+The Context-Aware training script expects:
+```text
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials_context.pkl
+```

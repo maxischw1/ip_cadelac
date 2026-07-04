@@ -161,5 +161,24 @@ def make_dataset(side):
         print("First q shape:", data["qp"][0].shape)
         print("First tau shape:", data["tau"][0].shape)
 
+    # Context-Aware training dataset.
+    # In the simplified exoskeleton setup, the measured torque is used directly
+    # as the residual target: diff_tau = tau.
+    context_data = dict(data)
+    context_data["metadata"] = dict(data["metadata"])
+    context_data["metadata"]["context_setup"] = "diff_tau = tau"
+
+    context_data["diff_tau"] = [tau_seg.copy() for tau_seg in data["tau"]]
+    context_data["diff_tau_m"] = [np.zeros_like(tau_seg) for tau_seg in data["tau"]]
+    context_data["diff_tau_c"] = [np.zeros_like(tau_seg) for tau_seg in data["tau"]]
+    context_data["diff_tau_g"] = [np.zeros_like(tau_seg) for tau_seg in data["tau"]]
+
+    context_out_path = OUT_DIR / out_name.replace(".pkl", "_context.pkl")
+
+    with open(context_out_path, "wb") as f:
+        pickle.dump(context_data, f)
+
+    print("Saved Context-Aware dataset:", context_out_path)
+
 make_dataset("left")
 make_dataset("right")
