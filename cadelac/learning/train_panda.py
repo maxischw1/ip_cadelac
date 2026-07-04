@@ -36,13 +36,13 @@ if __name__ == "__main__":
     minibatch = 1024
     loss_power = False
 
-    n_dof = 7
+    n_dof = 2
     flag_normalize_tau = True
     sample_offset = 1
     save_checkpoint_model = True
     log_period = 50
 
-    add_noise_to_load_data = True
+    add_noise_to_load_data = False
 
     LEARNING_DIR = str(Path(__file__).resolve().parents[0])
 
@@ -55,9 +55,9 @@ if __name__ == "__main__":
     n_lstm_depth = 5
 
     if full_model == False:
-        dataset_name = 'panda_mj_101_rand_envs_20_runs_50Hz_lqr'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials_context'
     else:
-        dataset_name = 'panda_mj_nominal_env_20_runs_50Hz_lqr'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials'
 
     if full_model:
         test_label = []
