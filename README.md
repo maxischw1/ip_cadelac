@@ -227,3 +227,13 @@ Main configuration changes:
 
 Artificial training noise is disabled because the exoskeleton dataset already comes from real measured motion data.
 
+
+### Subject-Wise Train/Test Split
+
+The exoskeleton setup uses a subject-wise split:
+
+- BT23 segments are used for training.
+- BT24 segments are used for testing.
+
+The test labels are selected automatically from the dataset labels by searching for `BT24`.
+
