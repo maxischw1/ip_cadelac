@@ -351,3 +351,10 @@ The exoskeleton datasets include metadata in addition to trajectory arrays.
 
 `add_historical_data()` was updated to keep non-time-series entries such as `labels` and `metadata` unchanged while only trimming trajectory arrays by `hist_length`. This keeps the LSTM history windows aligned with the current samples and avoids indexing errors on metadata dictionaries.
 
+
+### Exoskeleton Timestep Handling
+
+The original CaDeLaC dataset loader assumed nearly perfectly constant simulation timesteps and asserted `dt_var < 1.e-12`.
+
+For real exoskeleton recordings, small timestamp variations can occur. The loader now uses the median timestep as representative `dt_mean` and prints a warning instead of aborting training when the timestep variance is non-zero.
+
