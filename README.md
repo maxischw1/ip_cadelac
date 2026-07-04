@@ -235,3 +235,30 @@ The LSTM input is built from:
 
 This replaces the previous nominal residual torque history input. Since the simplified dataset sets `diff_tau = tau`, no nominal DeLaN torque prediction is required before Context-Aware training.
 
+
+### Training Commands
+
+Run Context-Aware exoskeleton training with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 0 -f 0 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_context_hist15.log
+```
+
+Run full DeLaN exoskeleton training with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 0 -f 1 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_full_delan.log
+```
+
+Evaluate a saved Context-Aware model with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 1 -f 0 -m 0 -r 0 -c 0
+```
+
+Evaluate a saved full DeLaN model with:
+
+```bash
+python -u -m cadelac.learning.train_panda -l 1 -f 1 -m 0 -r 0 -c 0
+```
+
