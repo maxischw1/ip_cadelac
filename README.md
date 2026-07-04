@@ -222,3 +222,16 @@ The exoskeleton setup uses a subject-wise split:
 
 The test labels are selected automatically from the dataset labels by searching for `BT24`.
 
+
+### Context-Aware LSTM Input
+
+For the simplified exoskeleton setup, the Context-Aware LSTM input uses the measured torque history directly.
+
+The LSTM input is built from:
+
+- joint positions `q`
+- joint velocities `qdot`
+- measured torque history `tau`
+
+This replaces the previous nominal residual torque history input. Since the simplified dataset sets `diff_tau = tau`, no nominal DeLaN torque prediction is required before Context-Aware training.
+

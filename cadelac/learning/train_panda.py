@@ -92,8 +92,8 @@ if __name__ == "__main__":
         test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g, \
                      test_hist_qp, test_hist_qv, test_hist_tau, test_hist_diff_tau_nom = test_data
         
-        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_diff_tau_nom), axis=-1)
-        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_diff_tau_nom), axis=-1)
+        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_tau), axis=-1)
+        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_tau), axis=-1)
         n_enc_input = n_lstm_output
 
 
