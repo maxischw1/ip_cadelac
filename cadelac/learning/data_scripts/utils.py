@@ -33,26 +33,41 @@ def init_env(args):
 
 def add_historical_data(hist_length, data,
                         list_key = ['qp', 'qv', 'tau', 'diff_tau_nom']):
-    
+    """Add sliding-window history arrays for selected time-series keys.
+
+    Non-time-series entries such as labels and metadata are kept unchanged.
+    All trajectory arrays are trimmed by hist_length so that current samples and
+    historical windows stay aligned.
+    """
+
     new_data = copy.deepcopy(data)
 
     data_hist = {}
     for key in list_key:
+        if key not in data:
+            raise KeyError(f"Historical key '{key}' not found in dataset.")
         data_hist[key] = [[] for _ in range(len(data[key]))]
 
-    for key in data.keys():
-        if key in list_key:
-            for index, run_data in enumerate(data[key]):
-                hist_values = []
-                for i in range(len(run_data)-hist_length):
-                    hist_values.append(run_data[i:(i+hist_length),:])
-                data_hist[key][index] = np.array(hist_values)
+    for key in list_key:
+        for index, run_data in enumerate(data[key]):
+            hist_values = []
+            for i in range(len(run_data) - hist_length):
+                hist_values.append(run_data[i:(i + hist_length), :])
+            data_hist[key][index] = np.array(hist_values)
 
-        # Delete data before hist_length
-        if key != 'labels':
-            for index, run_data in enumerate(data[key]):
-                new_data[key][index] = new_data[key][index][hist_length:]
-    
+    # Delete data before hist_length only for list-based trajectory arrays.
+    # Keep labels and metadata unchanged.
+    for key, value in data.items():
+        if key in ["labels", "metadata"]:
+            continue
+
+        if not isinstance(value, list):
+            continue
+
+        for index, run_data in enumerate(value):
+            if isinstance(run_data, np.ndarray):
+                new_data[key][index] = run_data[hist_length:]
+
     return new_data, data_hist
 
 

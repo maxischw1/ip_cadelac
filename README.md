@@ -344,3 +344,10 @@ The Context-Aware training script expects:
 ```text
 cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials_context.pkl
 ```
+
+### Historical Data Handling
+
+The exoskeleton datasets include metadata in addition to trajectory arrays.
+
+`add_historical_data()` was updated to keep non-time-series entries such as `labels` and `metadata` unchanged while only trimming trajectory arrays by `hist_length`. This keeps the LSTM history windows aligned with the current samples and avoids indexing errors on metadata dictionaries.
+
