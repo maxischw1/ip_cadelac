@@ -315,3 +315,18 @@ Ignored artifacts include:
 
 This keeps the repository focused on source code, scripts, and documentation. Datasets and trained models should be regenerated locally or shared separately if needed.
 
+
+## Exoskeleton Dataset Preparation
+
+This fork adds support for converting processed hip-knee exoskeleton data into the `.pkl` format expected by the CaDeLaC/DeLaN training pipeline.
+
+### Added Dataset Scripts
+
+- `make_exo_pkl.py`: Creates a single 2-DOF exoskeleton `.pkl` dataset from the processed CSV files. In the simplified Context-Aware setup, the measured torque is directly used as the residual target by setting `diff_tau = tau`.
+
+
+- `make_all_exo_pkls.py`: Creates multiple exoskeleton `.pkl` dataset variants from the available processed exoskeleton trials.
+
+
+- `fix_exo_pkl_time.py`: Fixes or normalizes timing information inside an already generated exoskeleton `.pkl` dataset.
+
