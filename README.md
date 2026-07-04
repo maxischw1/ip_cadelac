@@ -300,3 +300,18 @@ Run a segment zoom:
 ```bash
 python plot_zoomed_context_torque_prediction.py --segment incline_walk_1_1_seg_03 --max-samples 500
 ```
+
+## Repository Hygiene
+
+Generated experiment artifacts should not be committed to the repository.
+
+Ignored artifacts include:
+
+- training logs in `logs/`
+- generated metric CSV files and plots
+- generated `.pkl` datasets
+- trained `.torch` model files
+- checkpoint folders
+
+This keeps the repository focused on source code, scripts, and documentation. Datasets and trained models should be regenerated locally or shared separately if needed.
+
