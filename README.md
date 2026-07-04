@@ -262,3 +262,18 @@ Evaluate a saved full DeLaN model with:
 python -u -m cadelac.learning.train_panda -l 1 -f 1 -m 0 -r 0 -c 0
 ```
 
+
+## Exoskeleton Context-Aware Evaluation
+
+The simplified Context-Aware setup uses `diff_tau = tau`. Therefore, evaluation directly compares the model prediction `tau_pred` against the measured torque target `test_tau`.
+
+No nominal torque reconstruction is required.
+
+### Added Evaluation Script
+
+- `evaluate_context_checkpoints.py`: Evaluates saved Context-Aware checkpoints and final models on the BT24 test split. It writes Torque MSE/RMSE metrics to `logs/exo_context_checkpoint_metrics.csv`.
+
+Run:
+
+```bash
+python evaluate_context_checkpoints.py
