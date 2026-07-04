@@ -213,21 +213,6 @@ Main configuration changes:
 
 Artificial training noise is disabled because the exoskeleton dataset already comes from real measured motion data.
 
-
-## 2-DOF Exoskeleton Training Configuration
-
-The training script was adapted for the 2-DOF hip-knee exoskeleton setup.
-
-Main configuration changes:
-
-- `n_dof = 2`
-- `add_noise_to_load_data = False`
-- Context-Aware training uses `exo_hip_knee_delan_2dof_left_all_trials_context`
-- Full DeLaN training uses `exo_hip_knee_delan_2dof_left_all_trials`
-
-Artificial training noise is disabled because the exoskeleton dataset already comes from real measured motion data.
-
-
 ### Subject-Wise Train/Test Split
 
 The exoskeleton setup uses a subject-wise split:
