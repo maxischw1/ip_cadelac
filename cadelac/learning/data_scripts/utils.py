@@ -109,8 +109,14 @@ def load_dataset(filename="data/character_data.pickle", test_label=("run_0","run
     test_idx = [data["labels"].index(x) for x in test_label]
 
     dt = np.concatenate([data["t"][idx][1:] - data["t"][idx][:-1] for idx in test_idx])
-    dt_mean, dt_var = np.mean(dt), np.var(dt)
-    assert dt_var < 1.e-12
+    dt_mean, dt_var = float(np.median(dt)), float(np.var(dt))
+
+    # The original Panda simulation data has almost perfectly constant time steps.
+    # Real exoskeleton recordings can contain tiny timestamp variations, so we do
+    # not abort training when dt_var is non-zero. The median timestep is used as
+    # the representative dt for evaluation and plotting.
+    if dt_var >= 1.e-12:
+        print(f"Warning: non-constant timestep detected. dt_median={dt_mean:.6e}, dt_var={dt_var:.6e}")
 
     train_labels, test_labels = [], []
     train_qp, train_qv, train_qa, train_tau = np.zeros((0, n_dof)), np.zeros((0, n_dof)), np.zeros((0, n_dof)), np.zeros((0, n_dof))
