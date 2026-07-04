@@ -327,3 +327,6 @@ This fork adds support for converting processed hip-knee exoskeleton data into t
 
 - `make_all_exo_pkls.py`: Creates multiple exoskeleton `.pkl` dataset variants from the available processed exoskeleton trials.
 
+
+- `fix_exo_pkl_time.py`: Fixes or normalizes timing information inside an already generated exoskeleton `.pkl` dataset.
+
