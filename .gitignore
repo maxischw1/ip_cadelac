@@ -18,3 +18,22 @@ sim_results/
 
 c_generated_code/
 acados_ocp.json
+
+# Exoskeleton experiment artifacts
+logs/*.log
+logs/torque_zoom/
+logs/*.csv
+logs/*.png
+logs/*.pdf
+
+# Generated model checkpoints and trained model weights
+cadelac/learning/trained_models/**/*.torch
+cadelac/learning/trained_models/**/checkpoint/
+cadelac/learning/trained_models/**/checkpoint_old_runs/
+
+# Generated datasets
+cadelac/learning/datasets/**/*.pkl
+
+# Python cache
+__pycache__/
+*.pyc
