@@ -286,7 +286,7 @@ Run:
 
 ```bash
 python plot_context_checkpoint_metrics.py
-
+```
 ### Added Torque Plot Script
 
 - `plot_zoomed_context_torque_prediction.py`: Plots predicted torque against measured ground truth torque for Joint 0 and Joint 1. This visualizes whether the Context-Aware model follows the BT24 test trajectory.
