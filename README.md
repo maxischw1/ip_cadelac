@@ -277,7 +277,7 @@ Run:
 
 ```bash
 python evaluate_context_checkpoints.py
-
+```
 ### Added Metric Plot Script
 
 - `plot_context_checkpoint_metrics.py`: Plots Torque MSE and Torque RMSE over training epochs from `logs/exo_context_checkpoint_metrics.csv`.
