@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
+import csv
 import re
 
 import dill as pickle
@@ -126,10 +127,49 @@ def predict(model_path: Path, segment: str | None):
     return test_labels, test_tau, tau_pred, dt_mean
 
 
+def compute_metrics(tau_true, tau_pred):
+    error = tau_pred - tau_true
+
+    joint_mse = np.mean(error ** 2, axis=0)
+    joint_rmse = np.sqrt(joint_mse)
+
+    torque_mse = float(np.mean(error ** 2))
+    torque_rmse = float(np.sqrt(torque_mse))
+
+    return {
+        "n_samples": int(tau_true.shape[0]),
+        "torque_mse": torque_mse,
+        "torque_rmse": torque_rmse,
+        "joint_0_mse": float(joint_mse[0]),
+        "joint_1_mse": float(joint_mse[1]),
+        "joint_0_rmse": float(joint_rmse[0]),
+        "joint_1_rmse": float(joint_rmse[1]),
+    }
+
+
+def save_metrics(output_path, model_path, test_labels, metrics):
+    metrics_path = output_path.with_name(output_path.stem + "_metrics.csv")
+
+    row = {
+        "model_path": str(model_path),
+        "labels": ";".join(test_labels),
+        **metrics,
+    }
+
+    with open(metrics_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+        writer.writeheader()
+        writer.writerow(row)
+
+    return metrics_path
+
+
 def plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, max_samples=None):
     if max_samples is not None:
         tau_true = tau_true[:max_samples]
         tau_pred = tau_pred[:max_samples]
+
+    metrics = compute_metrics(tau_true, tau_pred)
 
     t = np.arange(tau_true.shape[0]) * dt_mean
 
@@ -142,6 +182,18 @@ def plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, max_sampl
         ax.grid(True)
         ax.legend()
 
+        metric_text = (
+            f"MSE = {metrics[f'joint_{joint_idx}_mse']:.3e}\n"
+            f"RMSE = {metrics[f'joint_{joint_idx}_rmse']:.3e} Nm"
+        )
+        ax.text(
+            0.01,
+            0.95,
+            metric_text,
+            transform=ax.transAxes,
+            verticalalignment="top",
+        )
+
     axes[-1].set_xlabel("Time [s]")
 
     title = "Torque Prediction vs Ground Truth"
@@ -150,10 +202,17 @@ def plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, max_sampl
     else:
         title += " - BT24 Test Split"
 
+    title += (
+        f"\nTotal MSE = {metrics['torque_mse']:.3e}, "
+        f"Total RMSE = {metrics['torque_rmse']:.3e} Nm"
+    )
+
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
+
+    return metrics
 
 
 def main():
@@ -177,11 +236,17 @@ def main():
         name = "exo_context_zoomed_torque_full_BT24.png"
 
     output_path = output_dir / name
-    plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, args.max_samples)
+    metrics = plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, args.max_samples)
+    metrics_path = save_metrics(output_path, model_path, test_labels, metrics)
 
     print("Model:", model_path)
     print("Labels:", test_labels)
     print("Saved:", output_path)
+    print("Saved metrics:", metrics_path)
+    print(f"Torque MSE:  {metrics['torque_mse']:.6e}")
+    print(f"Torque RMSE: {metrics['torque_rmse']:.6e} Nm")
+    print(f"Joint 0 RMSE: {metrics['joint_0_rmse']:.6e} Nm")
+    print(f"Joint 1 RMSE: {metrics['joint_1_rmse']:.6e} Nm")
 
 
 if __name__ == "__main__":
