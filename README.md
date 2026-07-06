@@ -358,3 +358,19 @@ The original CaDeLaC dataset loader assumed nearly perfectly constant simulation
 
 For real exoskeleton recordings, small timestamp variations can occur. The loader now uses the median timestep as representative `dt_mean` and prints a warning instead of aborting training when the timestep variance is non-zero.
 
+
+### Torque Plot Metrics
+
+The zoomed torque plotting script also reports quantitative error metrics for the plotted samples.
+
+For each generated plot, the script computes:
+
+- total Torque MSE
+- total Torque RMSE
+- Joint 0 MSE/RMSE
+- Joint 1 MSE/RMSE
+
+The metrics are printed in the terminal, shown inside the plot, and saved next to the plot as a small CSV file.
+
+If `--max-samples` is used, the metrics are computed only over the displayed sample window.
+
