@@ -12,19 +12,22 @@ OUTPUT_DIR = REPO_DIR / "logs"
 
 
 def load_metrics():
+    # open csv
     with open(INPUT_CSV, newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 
+    # make csv usable (lists)
     rows = sorted(rows, key=lambda row: int(row["epoch"]))
 
     epochs = [int(row["epoch"]) for row in rows]
     mse = [float(row["torque_mse"]) for row in rows]
     rmse = [float(row["torque_rmse"]) for row in rows]
 
+    # output as lists for plotting
     return epochs, mse, rmse
 
-
+# function for plotting
 def save_plot(x, y, ylabel, title, output_path):
     plt.figure(figsize=(8, 5))
     plt.plot(x, y, marker="o")
@@ -40,11 +43,13 @@ def save_plot(x, y, ylabel, title, output_path):
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # get csv contents
     epochs, mse, rmse = load_metrics()
 
     mse_path = OUTPUT_DIR / "exo_context_torque_mse_over_epochs.png"
     rmse_path = OUTPUT_DIR / "exo_context_torque_rmse_over_epochs.png"
 
+    # plot list contents
     save_plot(
         epochs,
         mse,
