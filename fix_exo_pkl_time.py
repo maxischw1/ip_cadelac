@@ -4,16 +4,20 @@ from pathlib import Path
 import shutil
 
 p = Path("cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials.pkl")
-backup = p.with_suffix(".before_time_fix.pkl")
 
+# Backingup original file (safety-measure)
+backup = p.with_suffix(".before_time_fix.pkl")
 shutil.copy2(p, backup)
 print("Backup saved to:", backup)
+
 
 with open(p, "rb") as f:
     data = pickle.load(f)
 
+# Set sampling time
 dt = 0.005  # 200 Hz
 
+# Correct uniform time-axis and acceleration computation 
 for i in range(len(data["labels"])):
     n = len(data["t"][i])
 
@@ -26,6 +30,7 @@ for i in range(len(data["labels"])):
 with open(p, "wb") as f:
     pickle.dump(data, f)
 
+# control output
 print("Fixed:", p)
 print("Number of segments:", len(data["labels"]))
 print("First label:", data["labels"][0])
