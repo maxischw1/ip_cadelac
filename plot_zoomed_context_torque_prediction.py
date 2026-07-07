@@ -13,32 +13,33 @@ import torch
 from cadelac.learning.models.context_aware_delan import ContextAwareDeLaN
 from cadelac.learning.data_scripts.utils import load_dataset
 
-
+# Define repository-relative paths for the dataset, trained models,
+# checkpoints, and output directory.
 REPO_DIR = Path(__file__).resolve().parent
 LEARNING_DIR = REPO_DIR / "cadelac" / "learning"
-
 DATASET_NAME = "exo_hip_knee_delan_2dof_left_all_trials_context"
 DATASET_PATH = LEARNING_DIR / "datasets" / "panda" / f"{DATASET_NAME}.pkl"
-
 MODEL_DIR = LEARNING_DIR / "trained_models" / "res_model" / "panda" / "ContextAware"
 CHECKPOINT_DIR = MODEL_DIR / "checkpoint"
-
 OUTPUT_DIR = REPO_DIR / "logs" / "torque_zoom"
 
+# Exoskeleton setup:
+# 2 DoF means hip and knee.
 N_DOF = 2
-SAMPLE_OFFSET = 1
+SAMPLE_OFFSET = 1 # Skipped first samples for hist
 HIST_LABELS = ["qp", "qv", "tau", "diff_tau"]
 
 
 def sanitize(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_.-]+", "_", name)
 
-
+# Helper: Find the latest available trained model
 def find_latest_model():
     candidates = []
 
     candidates.extend(sorted(MODEL_DIR.glob(f"epochs_*{DATASET_NAME}.torch")))
 
+    # If a checkpoint directory exists, also add checkpoint models
     if CHECKPOINT_DIR.exists():
         candidates.extend(sorted(CHECKPOINT_DIR.glob(f"*{DATASET_NAME}.torch")))
 
@@ -49,7 +50,7 @@ def find_latest_model():
 
     return candidates[-1]
 
-
+# Helper: Select test labels
 def get_test_labels(segment: str | None):
     with open(DATASET_PATH, "rb") as f:
         raw_data = pickle.load(f)
@@ -62,7 +63,7 @@ def get_test_labels(segment: str | None):
 
     return [label for label in raw_data["labels"] if "BT24" in label]
 
-
+# Load test data and build LSTM input
 def load_prediction_data(hist_length: int, segment: str | None):
     test_label = get_test_labels(segment)
 
@@ -93,6 +94,7 @@ def load_prediction_data(hist_length: int, segment: str | None):
         _test_hist_diff_tau,
     ) = test_data
 
+    # Build the LSTM history input from position, velocity, and torque history.
     test_lstm_input = np.concatenate(
         (test_hist_qp, test_hist_qv, test_hist_tau),
         axis=-1,
@@ -100,7 +102,7 @@ def load_prediction_data(hist_length: int, segment: str | None):
 
     return test_labels, test_qp, test_qv, test_qa, test_tau, test_lstm_input, dt_mean
 
-
+# Load model and generate torque predictions
 def predict(model_path: Path, segment: str | None):
     state = torch.load(model_path, map_location=torch.device("cpu"), weights_only=False)
     hyper = state["hyper"]
@@ -126,7 +128,7 @@ def predict(model_path: Path, segment: str | None):
 
     return test_labels, test_tau, tau_pred, dt_mean
 
-
+# Computes total MSE/RMSE over both joints and individual MSE/RMSE per joint.
 def compute_metrics(tau_true, tau_pred):
     error = tau_pred - tau_true
 
@@ -146,7 +148,7 @@ def compute_metrics(tau_true, tau_pred):
         "joint_1_rmse": float(joint_rmse[1]),
     }
 
-
+# Stores the used model path, evaluated labels, and all computed error metrics as CSV
 def save_metrics(output_path, model_path, test_labels, metrics):
     metrics_path = output_path.with_name(output_path.stem + "_metrics.csv")
 
@@ -163,7 +165,9 @@ def save_metrics(output_path, model_path, test_labels, metrics):
 
     return metrics_path
 
-
+# Creates a two-row plot:
+# One subplot for hip torque and one subplot for knee torque
+# Each subplot shows ground truth and Context-Aware DeLaN prediction
 def plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, max_samples=None):
     if max_samples is not None:
         tau_true = tau_true[:max_samples]
@@ -213,8 +217,10 @@ def plot_torque(test_labels, tau_true, tau_pred, dt_mean, output_path, max_sampl
     plt.close(fig)
 
     return metrics
-
-
+# Main logic
+# Parses command-line arguments, loads the selected model,
+# generates predictions, creates the plot, saves metrics,
+# and prints a short summary to the terminal.
 def main():
     parser = ArgumentParser()
     parser.add_argument("--model", type=str, default=None)
