@@ -50,7 +50,7 @@ if __name__ == "__main__":
     ## LSTM parameters
     hist_length = 15 if (nn_id == "ContextAware" and not full_model) else 0
     hist_labels = ['qp', 'qv', 'tau', 'diff_tau']
-    n_lstm_input = n_dof * 3
+    n_lstm_input = n_dof * 2
     n_lstm_hidden = 10
     n_lstm_output = 10
     n_lstm_depth = 5
@@ -92,10 +92,13 @@ if __name__ == "__main__":
         test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g, \
                      test_hist_qp, test_hist_qv, test_hist_tau, test_hist_diff_tau_nom = test_data
         
-        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_tau), axis=-1)
-        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_tau), axis=-1)
+        train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv), axis=-1)
+        test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv), axis=-1)
         n_enc_input = n_lstm_output
 
+
+    assert not any("BT24" in label for label in train_labels), "BT24 leaked into training labels."
+    assert all("BT24" in label for label in test_labels), "Test labels are expected to be BT24."
 
     print("\n\n################################################")
     print("Runs:")
