@@ -374,3 +374,21 @@ The metrics are printed in the terminal, shown inside the plot, and saved next t
 
 If `--max-samples` is used, the metrics are computed only over the displayed sample window.
 
+
+### Left Leg Torque Grid Plot
+
+- `plot_left_leg_torque_grid.py`: Creates a grid-style torque plot for BT24 left-leg movements. Each column shows one movement segment, while the two rows show Joint 0 and Joint 1.
+
+The plot compares:
+
+- measured ground truth torque
+- Context-Aware DeLaN torque prediction
+
+The script also saves per-segment MSE/RMSE metrics as CSV.
+
+Run for left-leg incline walking:
+
+```bash
+python plot_left_leg_torque_grid.py --movement incline_walk --output-dir logs/left_leg_torque_grid
+Run for left-leg ball toss:
+python plot_left_leg_torque_grid.py --movement ball_toss --output-dir logs/left_leg_torque_grid
