@@ -37,3 +37,41 @@ cadelac/learning/datasets/**/*.pkl
 # Python cache
 __pycache__/
 *.pyc
+
+# =========================
+# Local experiment artifacts
+# =========================
+
+# Logs and generated evaluation outputs
+/logs/
+/figures/
+/cadelac/learning/figures/
+
+# Local-only helper scripts
+/run_context_eval_package.py
+/local_only/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated packages / archives
+*.zip
+*.tar
+*.tar.gz
+
+# Generated training logs
+*.log
+
+# Trained model artifacts
+*.torch
+/cadelac/learning/trained_models/
+
+# Generated datasets
+/cadelac/learning/datasets/**/*.pkl
+/cadelac/learning/datasets/**/*.csv
+
+# Generated metric files
+*_metrics.csv
+*_checkpoint_metrics.csv
