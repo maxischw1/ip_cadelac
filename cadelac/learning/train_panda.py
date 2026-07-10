@@ -37,6 +37,7 @@ if __name__ == "__main__":
     minibatch = 1024
     loss_power = False
 
+#changed parameters: n_dof = 7, add_noise_to_load_data = True
     n_dof = 2
     flag_normalize_tau = True
     sample_offset = 1
@@ -55,16 +56,17 @@ if __name__ == "__main__":
     n_lstm_output = 10
     n_lstm_depth = 5
 
+#changed name of dataset used
     if full_model == False:
-        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials_context'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials_context' # exo_hip_knee_delan_2dof_left_all_trials_context.pkl -f 0
     else:
-        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials'
+        dataset_name = 'exo_hip_knee_delan_2dof_left_all_trials' # exo_hip_knee_delan_2dof_left_all_trials.pkl -f 1
 
     dataset_path = LEARNING_DIR + '/datasets/panda/' + dataset_name + '.pkl'
 
+# changed to explicitly use BT24 for testing
     with open(dataset_path, "rb") as f:
         _data_tmp = pickle.load(f)
-
     test_label = [label for label in _data_tmp["labels"] if "BT24" in label]
     print("Subject-wise test labels:", test_label)
 
@@ -91,12 +93,12 @@ if __name__ == "__main__":
                      tain_hist_qp, tain_hist_qv, tain_hist_tau, tain_hist_diff_tau_nom = train_data
         test_labels, test_qp, test_qv, test_qa, test_tau, test_m, test_c, test_g, \
                      test_hist_qp, test_hist_qv, test_hist_tau, test_hist_diff_tau_nom = test_data
-        
+# changed to diff_tau = tau   
         train_lstm_input = np.concatenate((tain_hist_qp, tain_hist_qv, tain_hist_tau), axis=-1)
         test_lstm_input = np.concatenate((test_hist_qp, test_hist_qv, test_hist_tau), axis=-1)
         n_enc_input = n_lstm_output
 
-
+# changed safety assert for not using BT24 in Training
     assert not any("BT24" in label for label in train_labels), "BT24 leaked into training labels."
     assert all("BT24" in label for label in test_labels), "Test labels are expected to be BT24."
 
