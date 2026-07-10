@@ -1,3 +1,10 @@
+# Local repo import bootstrap for running this script from scripts/evaluation/
+from pathlib import Path as _Path
+import sys as _sys
+_REPO_DIR_BOOTSTRAP = _Path(__file__).resolve().parents[2]
+if str(_REPO_DIR_BOOTSTRAP) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_DIR_BOOTSTRAP))
+
 from pathlib import Path
 import csv
 
@@ -6,7 +13,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-REPO_DIR = Path(__file__).resolve().parent
+REPO_DIR = Path(__file__).resolve().parents[2]
+if str(REPO_DIR) not in sys.path:
+    sys.path.insert(0, str(REPO_DIR))
 INPUT_CSV = REPO_DIR / "logs" / "exo_context_checkpoint_metrics.csv"
 OUTPUT_DIR = REPO_DIR / "logs"
 
