@@ -1,7 +1,15 @@
+# Local repo import bootstrap for running this script from scripts/evaluation/
+from pathlib import Path as _Path
+import sys as _sys
+_REPO_DIR_BOOTSTRAP = _Path(__file__).resolve().parents[2]
+if str(_REPO_DIR_BOOTSTRAP) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_DIR_BOOTSTRAP))
+
 from argparse import ArgumentParser
 from pathlib import Path
 import csv
 import re
+import sys
 
 import dill as pickle
 import matplotlib
@@ -15,7 +23,9 @@ from cadelac.learning.data_scripts.utils import load_dataset
 
 # Define repository-relative paths for the dataset, trained models,
 # checkpoints, and output directory.
-REPO_DIR = Path(__file__).resolve().parent
+REPO_DIR = Path(__file__).resolve().parents[2]
+if str(REPO_DIR) not in sys.path:
+    sys.path.insert(0, str(REPO_DIR))
 LEARNING_DIR = REPO_DIR / "cadelac" / "learning"
 DATASET_NAME = "exo_hip_knee_delan_2dof_left_all_trials_context"
 DATASET_PATH = LEARNING_DIR / "datasets" / "panda" / f"{DATASET_NAME}.pkl"
