@@ -1,3 +1,10 @@
+# Local repo import bootstrap for running this script from scripts/data/
+from pathlib import Path as _Path
+import sys as _sys
+_REPO_DIR_BOOTSTRAP = _Path(__file__).resolve().parents[2]
+if str(_REPO_DIR_BOOTSTRAP) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_DIR_BOOTSTRAP))
+
 import dill as pickle
 import numpy as np
 from pathlib import Path
