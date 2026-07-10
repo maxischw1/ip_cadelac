@@ -209,6 +209,7 @@ if __name__ == "__main__":
         t0_epoch = time.perf_counter()
 
         if save_checkpoint_model:
+#changed to create checkpoint after certain timestep
             if epoch_i > 0 and (epoch_i % 500) == 0:
                 print(f'Saving checkpoint model epoch: {epoch_i}')
                 CHECKPOINT_DIR = LEARNING_DIR + f"/trained_models/{model_type_folder}/checkpoint/"
