@@ -23,6 +23,7 @@ def has_cols(arr, cols):
     names = set(arr.dtype.names or [])
     return all(c in names for c in cols)
 
+# change tau_cols
 def make_dataset(side):
     if side == "left":
         angle_cols = ["hip_angle_l", "knee_angle_l"]
