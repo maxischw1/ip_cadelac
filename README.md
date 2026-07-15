@@ -200,195 +200,537 @@ As Acados needs to compile the controller in the first run, which will take seve
 - [ ] Additional implementation details
 - [ ] Dataset collection scripts
 
-## 2-DOF Exoskeleton Training Configuration
+## Exoskeleton Extension: Script Structure and Usage
 
-The training script was adapted for the 2-DOF hip-knee exoskeleton setup.
+This fork extends CaDeLaC with a simplified **2-DOF hip-knee exoskeleton setup** for Context-Aware DeLaN training and evaluation.
 
-Main configuration changes:
+The original CaDeLaC training pipeline remains centered around:
 
-- `n_dof = 2`
-- `add_noise_to_load_data = False`
-- Context-Aware training uses `exo_hip_knee_delan_2dof_left_all_trials_context`
-- Full DeLaN training uses `exo_hip_knee_delan_2dof_left_all_trials`
-
-Artificial training noise is disabled because the exoskeleton dataset already comes from real measured motion data.
-
-### Subject-Wise Train/Test Split
-
-The exoskeleton setup uses a subject-wise split:
-
-- BT23 segments are used for training.
-- BT24 segments are used for testing.
-
-The test labels are selected automatically from the dataset labels by searching for `BT24`.
-
-
-### Context-Aware LSTM Input
-
-For the simplified exoskeleton setup, the Context-Aware LSTM input uses the measured torque history directly.
-
-The LSTM input is built from:
-
-- joint positions `q`
-- joint velocities `qdot`
-- measured torque history `tau`
-
-This replaces the previous nominal residual torque history input. Since the simplified dataset sets `diff_tau = tau`, no nominal DeLaN torque prediction is required before Context-Aware training.
-
-
-### Training Commands
-
-Run Context-Aware exoskeleton training with:
-
-```bash
-python -u -m cadelac.learning.train_panda -l 0 -f 0 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_context_hist15.log
+```text
+cadelac/learning/train_panda.py
 ```
 
-Run full DeLaN exoskeleton training with:
+Additional helper scripts for dataset preparation, training shortcuts, and evaluation are organized under the `scripts/` directory.
 
-```bash
-python -u -m cadelac.learning.train_panda -l 0 -f 1 -m 1 -r 0 -c 0 2>&1 | tee logs/exo_full_delan.log
+---
+
+### Script Directory Structure
+
+```text
+scripts/
+├── data/
+│   ├── make_exo_pkl.py
+│   ├── make_all_exo_pkls.py
+│   └── fix_exo_pkl_time.py
+│
+├── training/
+│   ├── train_exo_context_current_config.sh
+│   └── eval_exo_context_current_config.sh
+│
+└── evaluation/
+    ├── evaluate_context_checkpoints.py
+    ├── plot_context_checkpoint_metrics.py
+    ├── plot_zoomed_context_torque_prediction.py
+    └── plot_left_leg_torque_grid.py
 ```
 
-Evaluate a saved Context-Aware model with:
+General usage from the repository root:
 
 ```bash
-python -u -m cadelac.learning.train_panda -l 1 -f 0 -m 0 -r 0 -c 0
+cd ~/code/ip_cadelac
+conda activate cadelac
 ```
 
-Evaluate a saved full DeLaN model with:
+---
 
-```bash
-python -u -m cadelac.learning.train_panda -l 1 -f 1 -m 0 -r 0 -c 0
+## 1. Dataset Preparation Scripts
+
+Dataset preparation scripts are stored in:
+
+```text
+scripts/data/
 ```
 
+These scripts convert processed exoskeleton CSV data into the `.pkl` format expected by the CaDeLaC/DeLaN training pipeline.
 
-## Exoskeleton Context-Aware Evaluation
+Generated datasets are written to:
 
-The simplified Context-Aware setup uses `diff_tau = tau`. Therefore, evaluation directly compares the model prediction `tau_pred` against the measured torque target `test_tau`.
+```text
+cadelac/learning/datasets/panda/
+```
 
-No nominal torque reconstruction is required.
+---
 
-### Added Evaluation Script
+### `scripts/data/make_exo_pkl.py`
 
-- `evaluate_context_checkpoints.py`: Evaluates saved Context-Aware checkpoints and final models on the BT24 test split. It writes Torque MSE/RMSE metrics to `logs/exo_context_checkpoint_metrics.csv`.
+Creates a simple **single left-leg 2-DOF exoskeleton dataset** from two local CSV files:
+
+```text
+~/Downloads/Exo.csv
+~/Downloads/Joint_Moments_Filt.csv
+```
+
+The script extracts left hip and knee angles, velocities, and joint moments. Angles are converted from degrees to radians, accelerations are computed from filtered velocities, and the trajectory is split into segments.
+
+Output:
+
+```text
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_only.pkl
+```
 
 Run:
 
 ```bash
-python evaluate_context_checkpoints.py
-```
-### Added Metric Plot Script
-
-- `plot_context_checkpoint_metrics.py`: Plots Torque MSE and Torque RMSE over training epochs from `logs/exo_context_checkpoint_metrics.csv`.
-
-Run:
-
-```bash
-python plot_context_checkpoint_metrics.py
-```
-### Added Torque Plot Script
-
-- `plot_zoomed_context_torque_prediction.py`: Plots predicted torque against measured ground truth torque for Joint 0 and Joint 1. This visualizes whether the Context-Aware model follows the BT24 test trajectory.
-
-Run full BT24 plot:
-
-```bash
-python plot_zoomed_context_torque_prediction.py
-```
-Run a segment zoom:
-```bash
-python plot_zoomed_context_torque_prediction.py --segment incline_walk_1_1_seg_03 --max-samples 500
+python scripts/data/make_exo_pkl.py
 ```
 
-## Repository Hygiene
+Use this script mainly for quick single-file tests or debugging the dataset conversion pipeline.
 
-Generated experiment artifacts should not be committed to the repository.
+---
 
-Ignored artifacts include:
+### `scripts/data/make_all_exo_pkls.py`
 
-- training logs in `logs/`
-- generated metric CSV files and plots
-- generated `.pkl` datasets
-- trained `.torch` model files
-- checkpoint folders
+Creates the main **left- and right-leg all-trials exoskeleton datasets** from a full processed data folder.
 
-This keeps the repository focused on source code, scripts, and documentation. Datasets and trained models should be regenerated locally or shared separately if needed.
+Expected input folder:
 
+```text
+~/Downloads/codeocean_exo_data
+```
 
-## Exoskeleton Dataset Preparation
+The script searches recursively for matching:
 
-This fork adds support for converting processed hip-knee exoskeleton data into the `.pkl` format expected by the CaDeLaC/DeLaN training pipeline.
+```text
+Exo.csv
+Joint_Moments_Filt.csv
+```
 
-### Added Dataset Scripts
+It creates segmented datasets for both sides:
 
-- `make_exo_pkl.py`: Creates a single 2-DOF exoskeleton `.pkl` dataset from the processed CSV files. In the simplified Context-Aware setup, the measured torque is directly used as the residual target by setting `diff_tau = tau`.
+```text
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials.pkl
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_right_all_trials.pkl
+```
 
+It also creates Context-Aware dataset variants with the `_context.pkl` suffix.
 
-- `make_all_exo_pkls.py`: Creates multiple exoskeleton `.pkl` dataset variants from the available processed exoskeleton trials.
+For the simplified Context-Aware setup, the filtered joint moment signals from `Joint_Moments_Filt.csv` are used as the torque target `tau`.
 
-
-- `fix_exo_pkl_time.py`: Fixes or normalizes timing information inside an already generated exoskeleton `.pkl` dataset.
-
-
-### Context-Aware Dataset Variant
-
-`make_all_exo_pkls.py` also creates a Context-Aware dataset variant with the suffix `_context.pkl`.
-
-For this simplified setup, the measured torque is used directly as the residual target:
+In this setup, the Context-Aware residual target is set directly to this torque target:
 
 ```text
 diff_tau = tau
 ```
-The Context-Aware training script expects:
+```bash
+tau_cols = ["hip_flexion_l_moment", "knee_angle_l_moment"]
+```
+
+
+Therefore, the Context-Aware training dataset is:
+
 ```text
 cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials_context.pkl
 ```
 
-### Historical Data Handling
-
-The exoskeleton datasets include metadata in addition to trajectory arrays.
-
-`add_historical_data()` was updated to keep non-time-series entries such as `labels` and `metadata` unchanged while only trimming trajectory arrays by `hist_length`. This keeps the LSTM history windows aligned with the current samples and avoids indexing errors on metadata dictionaries.
-
-
-### Exoskeleton Timestep Handling
-
-The original CaDeLaC dataset loader assumed nearly perfectly constant simulation timesteps and asserted `dt_var < 1.e-12`.
-
-For real exoskeleton recordings, small timestamp variations can occur. The loader now uses the median timestep as representative `dt_mean` and prints a warning instead of aborting training when the timestep variance is non-zero.
-
-
-### Torque Plot Metrics
-
-The zoomed torque plotting script also reports quantitative error metrics for the plotted samples.
-
-For each generated plot, the script computes:
-
-- total Torque MSE
-- total Torque RMSE
-- Joint 0 MSE/RMSE
-- Joint 1 MSE/RMSE
-
-The metrics are printed in the terminal, shown inside the plot, and saved next to the plot as a small CSV file.
-
-If `--max-samples` is used, the metrics are computed only over the displayed sample window.
-
-
-### Left Leg Torque Grid Plot
-
-- `plot_left_leg_torque_grid.py`: Creates a grid-style torque plot for BT24 left-leg movements. Each column shows one movement segment, while the two rows show Joint 0 and Joint 1.
-
-The plot compares:
-
-- measured ground truth torque
-- Context-Aware DeLaN torque prediction
-
-The script also saves per-segment MSE/RMSE metrics as CSV.
-
-Run for left-leg incline walking:
+Run:
 
 ```bash
-python plot_left_leg_torque_grid.py --movement incline_walk --output-dir logs/left_leg_torque_grid
-Run for left-leg ball toss:
-python plot_left_leg_torque_grid.py --movement ball_toss --output-dir logs/left_leg_torque_grid
+python scripts/data/make_all_exo_pkls.py
+```
+
+This is the main dataset generation script for the current exoskeleton experiments.
+
+---
+
+### `scripts/data/fix_exo_pkl_time.py`
+
+Fixes the time axis of an already generated exoskeleton `.pkl` dataset.
+
+Current target file:
+
+```text
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials.pkl
+```
+
+The script creates a backup first:
+
+```text
+exo_hip_knee_delan_2dof_left_all_trials.before_time_fix.pkl
+```
+
+Then it enforces a uniform timestep of:
+
+```text
+dt = 0.005  # 200 Hz
+```
+
+and recomputes joint accelerations from `qv`.
+
+Run:
+
+```bash
+python scripts/data/fix_exo_pkl_time.py
+```
+
+Use this script only when the generated dataset has non-uniform or inconsistent timestep information.
+
+---
+
+## 2. Training Scripts
+
+Training scripts are stored in:
+
+```text
+scripts/training/
+```
+
+They are thin shell wrappers around:
+
+```text
+cadelac/learning/train_panda.py
+```
+
+They do not define a separate training configuration. Instead, they use the current configuration inside `train_panda.py`.
+
+Experiment parameters such as `max_epoch`, `hist_length`, network sizes, and dataset names remain centralized in the main training file.
+
+---
+
+### `scripts/training/train_exo_context_current_config.sh`
+
+Starts a new Context-Aware exoskeleton training run with the currently configured settings in `train_panda.py`.
+
+Internally, it runs:
+
+```bash
+python -u -m cadelac.learning.train_panda \
+  -l 0 \
+  -f 0 \
+  -m 1 \
+  -r 0 \
+  -c 0
+```
+
+Meaning:
+
+```text
+-l 0  do not load an existing model; start training from scratch
+-f 0  use the Context-Aware/residual branch
+-m 1  save the trained model
+-r 0  do not render plots during training
+-c 0  run on CPU
+```
+
+Run:
+
+```bash
+bash scripts/training/train_exo_context_current_config.sh
+```
+
+Log output:
+
+```text
+logs/exo_context_current_config_train.log
+```
+
+---
+
+### `scripts/training/eval_exo_context_current_config.sh`
+
+Loads and evaluates a saved Context-Aware exoskeleton model using the currently configured settings in `train_panda.py`.
+
+Internally, it runs:
+
+```bash
+python -u -m cadelac.learning.train_panda \
+  -l 1 \
+  -f 0 \
+  -m 0 \
+  -r 0 \
+  -c 0
+```
+
+Meaning:
+
+```text
+-l 1  load a saved model
+-f 0  use the Context-Aware/residual branch
+-m 0  do not save a new model
+-r 0  do not render additional figures
+-c 0  run on CPU
+```
+
+Run:
+
+```bash
+bash scripts/training/eval_exo_context_current_config.sh
+```
+
+Log output:
+
+```text
+logs/exo_context_current_config_eval.log
+```
+
+---
+
+## 3. Evaluation Scripts
+
+Evaluation scripts are stored in:
+
+```text
+scripts/evaluation/
+```
+
+These scripts evaluate saved Context-Aware DeLaN models, compare predicted torque against measured torque, and generate plots and metric CSV files.
+
+The main Context-Aware dataset expected by the evaluation scripts is:
+
+```text
+cadelac/learning/datasets/panda/exo_hip_knee_delan_2dof_left_all_trials_context.pkl
+```
+
+The expected model folder is:
+
+```text
+cadelac/learning/trained_models/res_model/panda/ContextAware/
+```
+
+Generated plots and metrics are written to:
+
+```text
+logs/
+```
+
+---
+
+### `scripts/evaluation/evaluate_context_checkpoints.py`
+
+Evaluates all available Context-Aware checkpoints and final models on the BT24 test split.
+
+It searches for models in:
+
+```text
+cadelac/learning/trained_models/res_model/panda/ContextAware/
+cadelac/learning/trained_models/res_model/panda/ContextAware/checkpoint/
+```
+
+It computes torque prediction metrics and writes them to:
+
+```text
+logs/exo_context_checkpoint_metrics.csv
+```
+
+Run:
+
+```bash
+python scripts/evaluation/evaluate_context_checkpoints.py
+```
+
+Use this script to compare model performance across checkpoints or training epochs.
+
+---
+
+### `scripts/evaluation/plot_context_checkpoint_metrics.py`
+
+Plots checkpoint-level metrics from:
+
+```text
+logs/exo_context_checkpoint_metrics.csv
+```
+
+It creates:
+
+```text
+logs/exo_context_torque_mse_over_epochs.png
+logs/exo_context_torque_rmse_over_epochs.png
+```
+
+Run:
+
+```bash
+python scripts/evaluation/plot_context_checkpoint_metrics.py
+```
+
+Use this after running:
+
+```bash
+python scripts/evaluation/evaluate_context_checkpoints.py
+```
+
+---
+
+### `scripts/evaluation/plot_zoomed_context_torque_prediction.py`
+
+Creates a detailed torque prediction plot comparing:
+
+```text
+measured torque
+Context-Aware DeLaN predicted torque
+```
+
+The plot shows Joint 0 and Joint 1 torque over time and reports:
+
+```text
+total Torque MSE
+total Torque RMSE
+Joint 0 MSE/RMSE
+Joint 1 MSE/RMSE
+```
+
+The script also saves a small metrics CSV next to the generated plot.
+
+Set a model path:
+
+```bash
+MODEL="cadelac/learning/trained_models/res_model/panda/ContextAware/epochs_3000exo_hip_knee_delan_2dof_left_all_trials_context.torch"
+```
+
+Run on the full BT24 test split:
+
+```bash
+python scripts/evaluation/plot_zoomed_context_torque_prediction.py \
+  --model "$MODEL" \
+  --output-dir logs/torque_zoom
+```
+
+Run only for `ball_toss` segments:
+
+```bash
+python scripts/evaluation/plot_zoomed_context_torque_prediction.py \
+  --model "$MODEL" \
+  --segment ball_toss \
+  --output-dir logs/torque_zoom
+```
+
+Run only for `incline_walk` segments:
+
+```bash
+python scripts/evaluation/plot_zoomed_context_torque_prediction.py \
+  --model "$MODEL" \
+  --segment incline_walk \
+  --output-dir logs/torque_zoom
+```
+
+Optionally limit the plotted time window:
+
+```bash
+python scripts/evaluation/plot_zoomed_context_torque_prediction.py \
+  --model "$MODEL" \
+  --segment incline_walk \
+  --max-samples 500 \
+  --output-dir logs/torque_zoom
+```
+
+---
+
+### `scripts/evaluation/plot_left_leg_torque_grid.py`
+
+Creates a grid-style torque plot for BT24 left-leg movement segments.
+
+Each column corresponds to one movement segment. The two rows correspond to:
+
+```text
+Joint 0: hip
+Joint 1: knee
+```
+
+The plot compares measured torque against Context-Aware DeLaN prediction and writes a metrics CSV.
+
+Set a model path:
+
+```bash
+MODEL="cadelac/learning/trained_models/res_model/panda/ContextAware/epochs_3000exo_hip_knee_delan_2dof_left_all_trials_context.torch"
+```
+
+Run for `ball_toss`:
+
+```bash
+python scripts/evaluation/plot_left_leg_torque_grid.py \
+  --model "$MODEL" \
+  --movement ball_toss \
+  --output-dir logs/left_leg_torque_grid
+```
+
+Run for `incline_walk`:
+
+```bash
+python scripts/evaluation/plot_left_leg_torque_grid.py \
+  --model "$MODEL" \
+  --movement incline_walk \
+  --output-dir logs/left_leg_torque_grid
+```
+
+Use this script for quick visual comparison across multiple BT24 movement segments.
+
+---
+
+## 4. Current Exoskeleton Configuration
+
+The current exoskeleton setup uses a simplified 2-DOF hip-knee model:
+
+```text
+n_dof = 2
+```
+
+The two modeled joints are:
+
+```text
+Joint 0: hip
+Joint 1: knee
+```
+
+The Context-Aware LSTM history input is built from:
+
+```text
+q history
+qdot history
+measured torque history tau
+```
+
+In this simplified setup:
+
+```text
+diff_tau = tau
+```
+
+Artificial training noise is disabled because the exoskeleton data already comes from real measured motion data.
+
+---
+
+## 5. Train/Test Split
+
+The current exoskeleton experiments use a subject-wise split.
+
+The test split is selected automatically by searching for labels containing:
+
+```text
+BT24
+```
+
+BT24 segments are therefore used for testing. The remaining non-BT24 labels are used for training.
+
+This is intended to evaluate whether the Context-Aware model can generalize to a subject that was not part of the training split.
+
+---
+
+## 6. Repository Hygiene
+
+Generated experiment artifacts should remain local and should not be committed.
+
+Ignored artifacts include:
+
+```text
+logs/
+generated plots
+generated metric CSV files
+generated .pkl datasets
+trained .torch model files
+checkpoint folders
+zip packages
+local helper scripts
+```
+
+This keeps the repository focused on source code, scripts, and documentation.
+
+Datasets, trained models, logs, and plots should be regenerated locally or shared separately when needed.
